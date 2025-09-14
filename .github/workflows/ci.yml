@@ -10,39 +10,41 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: '3.12'
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.12
 
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[dev]
+      run: uv sync --dev
 
     - name: Run Ruff linter
-      run: ruff check .
+      run: uv run ruff check .
 
     - name: Run Ruff formatter
-      run: ruff format --check .
+      run: uv run ruff format --check .
 
   security:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: '3.12'
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.12
 
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[dev]
+      run: uv sync --dev
 
     - name: Run Bandit security checks
-      run: bandit -c pyproject.toml -r src/
+      run: uv run bandit -c pyproject.toml -r src/
 
   build-and-test:
     runs-on: ubuntu-latest
@@ -53,40 +55,42 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .
+      run: uv sync
 
     - name: Verify installation
       run: |
-        python -c "import src.main; print('Package installed successfully')"
+        uv run python -c "import src.main; print('Package installed successfully')"
 
     - name: Run basic import tests
       run: |
-        python -c "from src.llama import llama3"
-        python -c "from src.gpt import gpt2"
-        python -c "from src import benchmark"
+        uv run python -c "from src.llama import llama3"
+        uv run python -c "from src.gpt import gpt2"
+        uv run python -c "from src import benchmark"
 
   pre-commit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: '3.12'
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.12
 
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pre-commit
+      run: uv sync --dev
 
     - name: Run pre-commit
-      run: pre-commit run --all-files
+      run: uv run pre-commit run --all-files
