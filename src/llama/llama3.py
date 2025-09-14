@@ -36,12 +36,7 @@ def main():
     parser.add_argument("--size", choices=["1B", "8B", "70B", "405B"], default="1B", help="Model size")
     parser.add_argument("--shard", type=int, default=1, help="Shard the model across multiple devices")
     parser.add_argument("--quantize", choices=["int8", "nf4", "float16"], help="Quantization method")
-    parser.add_argument(
-        "--no_api", action="store_true", default=True, help="Disable the api and run a cli test interface"
-    )
-    parser.add_argument("--api", action="store_false", dest="no_api", help="Enable the web API (requires bottle)")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Web server bind address")
-    parser.add_argument("--port", type=int, default=7776, help="Web server port")
+    # Web API functionality removed
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--seed", type=int, help="Random seed")
     parser.add_argument("--temperature", type=float, default=0.85, help="Temperature")
@@ -73,12 +68,7 @@ def main():
     param_bytes = sum(x.uop.size * x.dtype.itemsize for x in get_parameters(model))
 
     # Route to appropriate mode
-    if not args.no_api and not args.benchmark:
-        from ..common.web_api import create_web_api
-
-        app = create_web_api(model, tokenizer, device, args)
-        app.run(host=args.host, port=args.port, debug=args.debug)
-    elif args.benchmark:
+    if args.benchmark:
         from ..common.benchmark import run_benchmark
 
         run_benchmark(model, tokenizer, args, param_bytes, device)

@@ -11,8 +11,7 @@ The primary implementation containing:
 - **Tokenizer**: Custom tokenizer for LLaMA 3 with special tokens support
 - **Model Architecture**: Transformer implementation with quantization support
 - **Quantization**: Int8 and NF4 quantization for memory efficiency
-- **Web API**: REST API server for chat completions and token operations
-- **CLI Interface**: Interactive command-line interface for local usage
+- **Interactive CLI**: Command-line interface for local usage
 
 ### Supported Models
 - **1B**: Llama 3.2 1B Instruct (GGUF format)
@@ -51,8 +50,8 @@ uv run python llama3.py --size 8B
 # Run with quantization
 uv run python llama3.py --size 8B --quantize int8
 
-# Run web API server
-uv run python llama3.py --size 8B --host 0.0.0.0 --port 7776
+# Run benchmark mode
+uv run python llama3.py --size 8B --benchmark
 ```
 
 ### Command Line Options
@@ -60,17 +59,9 @@ uv run python llama3.py --size 8B --host 0.0.0.0 --port 7776
 - `--quantize`: Quantization method (int8, nf4, float16)
 - `--shard`: Number of devices for model sharding
 - `--benchmark`: Run performance benchmark
-- `--no_api`: Use CLI interface instead of web server
 - `--temperature`: Sampling temperature (default: 0.85)
-- `--host`: Web server bind address (default: 0.0.0.0)
-- `--port`: Web server port (default: 7776)
-
-### API Endpoints
-When running in API mode:
-- `POST /v1/chat/completions` - Chat completions (streaming)
-- `POST /v1/completions` - Text completions (streaming)
-- `POST /v1/chat/token/encode` - Tokenize chat messages
-- `GET /v1/models` - List available models
+- `--timing`: Print timing information per token
+- `--profile`: Enable performance profiling
 
 ## Development Tools
 

@@ -23,7 +23,7 @@ def main():
 Examples:
   uv run main.py --model llama3-1b
   uv run main.py --model llama3-8b --quantize int8
-  uv run main.py --model llama3-70b --api --port 8080
+  uv run main.py --model llama3-70b --benchmark
         """
     )
 
@@ -40,10 +40,7 @@ Examples:
     parser.add_argument("--shard", type=int, default=1, help="Shard the model across multiple devices")
     parser.add_argument("--download", action="store_true", help="Force download of model")
 
-    # Interface options
-    parser.add_argument("--api", action="store_true", help="Run web API server")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Web server bind address")
-    parser.add_argument("--port", type=int, default=7776, help="Web server port")
+    # No web API options needed
 
     # Generation options
     parser.add_argument("--temperature", type=float, default=0.85, help="Temperature")
@@ -75,12 +72,6 @@ Examples:
         sys.argv.extend(["--shard", str(args.shard)])
     if args.download:
         sys.argv.append("--download_model")
-    if args.api:
-        sys.argv.append("--api")
-    if args.host != "0.0.0.0":
-        sys.argv.extend(["--host", args.host])
-    if args.port != 7776:
-        sys.argv.extend(["--port", str(args.port)])
     if args.temperature != 0.85:
         sys.argv.extend(["--temperature", str(args.temperature)])
     if args.seed:
