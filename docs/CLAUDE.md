@@ -26,6 +26,7 @@ Managed via `pyproject.toml`:
 - `tiktoken>=0.5.0` - Tokenization
 - `safetensors>=0.6.2` - Model loading
 - `numpy>=2.3.3` - Numerical operations
+- `torch>=2.0.0` - PyTorch backend for benchmarking
 
 ## Usage
 
@@ -81,16 +82,38 @@ tinygrad-demo/
 ```
 
 ### Running Tests and Benchmarks
+
+#### TinyGrad Benchmarks
 ```bash
 # Run benchmark mode
-uv run python llama3.py --benchmark --size 8B
+uv run main.py --model llama3-1b --benchmark
+uv run main.py --model llama3-8b --benchmark
 
 # Enable timing information
-uv run python llama3.py --timing --size 8B
+uv run main.py --model llama3-1b --timing
 
 # Enable profiling
-uv run python llama3.py --profile --size 8B
+uv run main.py --model llama3-1b --profile
 ```
+
+#### PyTorch vs TinyGrad Performance Comparison
+The project includes a PyTorch backend for direct performance comparison:
+
+```bash
+# Run TinyGrad benchmark
+uv run main.py --model llama3-1b --benchmark
+
+# Run PyTorch benchmark with same model weights
+uv run python pytorch-backend.py --size 1B --benchmark --model ~/models/llama3-1b-instruct/
+
+# Compare results directly
+```
+
+**PyTorch Backend Features**:
+- Identical LLaMA 3 architecture implementation
+- Compatible with TinyGrad model weights
+- Same tokenizer and benchmark methodology
+- Direct apples-to-apples performance comparison
 
 ## Code Quality and Development Tools
 
