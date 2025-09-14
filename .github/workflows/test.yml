@@ -1,0 +1,36 @@
+name: Build and Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: uv sync
+
+    - name: Verify installation
+      run: |
+        uv run python -c "import src.main; print('Package installed successfully')"
+
+    - name: Run basic import tests
+      run: |
+        uv run python -c "from src.llama import llama3"
+        uv run python -c "from src.gpt import gpt2"
+        uv run python -c "from src import benchmark"
