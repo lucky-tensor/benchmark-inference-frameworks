@@ -19,7 +19,6 @@ def run_command(cmd: list[str], description: str) -> bool:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         if result.stdout:
             print(result.stdout)
-        return True
     except subprocess.CalledProcessError as e:
         print(f"Error: {e}")
         if e.stdout:
@@ -27,6 +26,8 @@ def run_command(cmd: list[str], description: str) -> bool:
         if e.stderr:
             print("STDERR:", e.stderr)
         return False
+    else:
+        return True
 
 
 def main():
@@ -79,7 +80,7 @@ def main():
         print("=" * 60)
         cmd = ["uv", "run", "bandit", "-r", "."]
         if args.files:
-            cmd = ["uv", "run", "bandit"] + args.files
+            cmd = ["uv", "run", "bandit", *args.files]
         success = run_command(cmd, "Bandit security check") and success
 
     if success:

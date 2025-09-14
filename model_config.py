@@ -248,7 +248,8 @@ def download_model(size: str) -> Path:
         )
         for i in range(17):
             fetch(
-                f"https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-70B/resolve/main/model-{i + 1:05d}-of-000017.safetensors?download=true",
+                f"https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-70B/resolve/main/"
+                f"model-{i + 1:05d}-of-000017.safetensors?download=true",
                 os.path.join(model_dir, f"model-{i + 1:05d}-of-000017.safetensors"),
             )
         return model_path

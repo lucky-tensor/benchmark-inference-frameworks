@@ -11,7 +11,7 @@ from generation import TEMPERATURE, encode_message, encode_role, prefill
 
 def run_benchmark(model, tokenizer, args, param_bytes, device):
     """Run performance benchmark"""
-    toks = [tokenizer.bos_id] + encode_message("user", "Hello.", tokenizer) + encode_role("assistant", tokenizer)
+    toks = [tokenizer.bos_id, *encode_message("user", "Hello.", tokenizer), *encode_role("assistant", tokenizer)]
 
     start_pos = prefill(model, toks[:-1])
     last_tok = toks[-1]
@@ -23,20 +23,23 @@ def run_benchmark(model, tokenizer, args, param_bytes, device):
         with Profiling(enabled=args.profile):
             with Timing(
                 "total ",
-                on_exit=lambda x: f", {1e9 / x:.2f} tok/s, {GlobalCounters.global_mem / x:.2f} GB/s, param {param_bytes / x:.2f} GB/s",
+                on_exit=lambda x: f", {1e9 / x:.2f} tok/s, {GlobalCounters.global_mem / x:.2f} GB/s, "
+                f"param {param_bytes / x:.2f} GB/s",
             ):
                 with WallTimeEvent(BenchEvent.STEP):
                     with Timing(
                         "enqueue in ",
                         on_exit=(
-                            lambda et: (
-                                f", {(GlobalCounters.time_sum_s - st) * 1e3:.2f} ms on {Device.DEFAULT}"
+                            lambda et, start_time=st: (
+                                f", {(GlobalCounters.time_sum_s - start_time) * 1e3:.2f} ms on {Device.DEFAULT}"
                                 if DEBUG >= 2
                                 else ""
                             )
-                            + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, {GlobalCounters.global_mem * 1e-9:.2f} GB"
+                            + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, "
+                            f"{GlobalCounters.global_mem * 1e-9:.2f} GB"
                             + (
-                                f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - st):.2f} GB/s, param {param_bytes * 1e-9 / (GlobalCounters.time_sum_s - st):.2f} GB/s"
+                                f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s, "
+                                f"param {param_bytes * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s"
                                 if DEBUG >= 2
                                 else ""
                             )

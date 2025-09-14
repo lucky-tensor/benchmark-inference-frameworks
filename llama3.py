@@ -11,10 +11,10 @@ import sys
 from pathlib import Path
 
 # Set custom download directory
-os.environ["TINYGRAD_DOWNLOAD_CACHE"] = os.path.expanduser("~/models")
+os.environ["TINYGRAD_DOWNLOAD_CACHE"] = str(Path("~/models").expanduser())
 
 # Add current directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(str(Path(__file__).resolve().parent))
 
 from tinygrad import Device, Tensor
 from tinygrad.nn.state import get_parameters
@@ -108,7 +108,7 @@ def run_interactive_mode(model, tokenizer, device, args, param_bytes):
                 break
 
             session.add_message(MessageRole.USER, user_input)
-            context_tokens, expected_role = chat_interface.prepare_generation_context(session)
+            context_tokens, _expected_role = chat_interface.prepare_generation_context(session)
 
             stats = chat_interface.create_response_stats()
             stats.start_generation()
@@ -132,20 +132,23 @@ def run_interactive_mode(model, tokenizer, device, args, param_bytes):
                     with Timing(
                         "total ",
                         enabled=args.timing,
-                        on_exit=lambda x: f", {1e9 / x:.2f} tok/s, {GlobalCounters.global_mem / x:.2f} GB/s, param {param_bytes / x:.2f} GB/s",
+                        on_exit=lambda x: f", {1e9 / x:.2f} tok/s, {GlobalCounters.global_mem / x:.2f} GB/s, "
+                        f"param {param_bytes / x:.2f} GB/s",
                     ):
                         with Timing(
                             "enqueue in ",
                             enabled=args.timing,
                             on_exit=(
-                                lambda et: (
-                                    f", {(GlobalCounters.time_sum_s - st) * 1e3:.2f} ms on {Device.DEFAULT}"
+                                lambda et, start_time=st: (
+                                    f", {(GlobalCounters.time_sum_s - start_time) * 1e3:.2f} ms on {Device.DEFAULT}"
                                     if DEBUG >= 2
                                     else ""
                                 )
-                                + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, {GlobalCounters.global_mem * 1e-9:.2f} GB"
+                                + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, "
+                                f"{GlobalCounters.global_mem * 1e-9:.2f} GB"
                                 + (
-                                    f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - st):.2f} GB/s, param {param_bytes * 1e-9 / (GlobalCounters.time_sum_s - st):.2f} GB/s"
+                                    f",{GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s,"
+                                    f"param {param_bytes * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s"
                                     if DEBUG >= 2
                                     else ""
                                 )

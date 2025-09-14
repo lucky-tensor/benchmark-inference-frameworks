@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 # Add current directory to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(str(Path(__file__).resolve().parent))
 
 # Note: Models are expected to be in ~/models/<model_name>/
 os.environ["TINYGRAD_JIT"] = "1"
@@ -162,15 +162,17 @@ class VerboseLogger:
             print(f"Quantization: {metrics.quantization}")
 
         print("\nTIMING BREAKDOWN:")
+        cached_text = '(cached)' if metrics.model_was_cached else ''
         print(
-            f"  Model Loading:     {metrics.model_load_duration * 1000:8.2f}ms {'(cached)' if metrics.model_was_cached else ''}"
+            f"  Model Loading:     {metrics.model_load_duration * 1000:8.2f}ms {cached_text}"
         )
         print(
             f"  Prompt Processing: {metrics.prompt_processing_duration * 1000:8.2f}ms ({metrics.prompt_length} tokens)"
         )
         print(f"  Time to First Token: {metrics.time_to_first_token * 1000:6.2f}ms")
+        token_gen_time = (metrics.last_token_time - metrics.first_token_time) * 1000
         print(
-            f"  Token Generation:  {(metrics.last_token_time - metrics.first_token_time) * 1000:8.2f}ms ({metrics.total_tokens} tokens)"
+            f"  Token Generation:  {token_gen_time:8.2f}ms ({metrics.total_tokens} tokens)"
         )
 
         print("\nPERFORMANCE METRICS:")
@@ -202,17 +204,17 @@ class ModelMemoryTracker:
     def _load_cache(self):
         if self.cache_file.exists():
             try:
-                with open(self.cache_file) as f:
+                with self.cache_file.open() as f:
                     return json.load(f)
-            except:
+            except (FileNotFoundError, json.JSONDecodeError):
                 pass
         return {}
 
     def _save_cache(self):
         try:
-            with open(self.cache_file, "w") as f:
+            with self.cache_file.open("w") as f:
                 json.dump(self.cache, f, indent=2)
-        except:
+        except (FileNotFoundError, OSError):
             pass
 
     def get_current_memory_mb(self):
@@ -234,7 +236,8 @@ class ModelMemoryTracker:
         if is_loaded:
             age_hours = (time.time() - self.cache[model_name]["timestamp"]) / 3600
             print(
-                f"Model {model_name} appears to be loaded ({current_mem:.0f}MB, expected: {cached_mem:.0f}MB, age: {age_hours:.1f}h)"
+                f"Model {model_name} appears to be loaded ({current_mem:.0f}MB, "
+                f"expected: {cached_mem:.0f}MB, age: {age_hours:.1f}h)"
             )
 
         return is_loaded
@@ -377,8 +380,9 @@ def run_gpt2(model_name: str, **kwargs) -> None:
 
     print("=" * 80)
     print("✅ MODEL LOADING PHASE COMPLETED")
+    cache_status = 'from cache' if current_metrics.model_was_cached else 'from disk'
     print(
-        f"⏱️  Duration: {current_metrics.model_load_duration:.3f}s ({'from cache' if current_metrics.model_was_cached else 'from disk'})"
+        f"⏱️  Duration: {current_metrics.model_load_duration:.3f}s ({cache_status})"
     )
     print("=" * 80)
 
@@ -491,8 +495,9 @@ def run_gpt2(model_name: str, **kwargs) -> None:
         }
 
     cache_before = get_cache_contents(cache_dir)
+    cache_size_mb = cache_before['total_size'] / (1024 * 1024)
     print(
-        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_before['total_size'] / (1024 * 1024):.1f} MB total"
+        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_size_mb:.1f} MB total"
     )
 
     # Display cache contents summary
@@ -524,8 +529,9 @@ def run_gpt2(model_name: str, **kwargs) -> None:
                 combined_state = "".join(cache_state_data)
                 cache_hash = hashlib.sha256(combined_state.encode()).hexdigest()[:16]
                 print(f"🔒 Cache state hash: {cache_hash}")
+                kernel_types_count = len(summary.get('kernel_types', {}))
                 print(
-                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {len(summary.get('kernel_types', {}))} types"
+                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {kernel_types_count} types"
                 )
     else:
         print("🆕 No existing cache found - first run will compile all kernels")
@@ -536,10 +542,7 @@ def run_gpt2(model_name: str, **kwargs) -> None:
     # Helper functions for encoding
     def encode_role(role: str):
         return (
-            [tokenizer.special_tokens["<|start_header_id|>"]]
-            + tokenizer.encode(role)
-            + [tokenizer.special_tokens["<|end_header_id|>"]]
-            + tokenizer.encode("\n\n")
+            [tokenizer.special_tokens["<|start_header_id|>"], *tokenizer.encode(role), tokenizer.special_tokens["<|end_header_id|>"], *tokenizer.encode("\n\n")]
         )
 
     def encode_message(role: str, content: str):
@@ -549,7 +552,7 @@ def run_gpt2(model_name: str, **kwargs) -> None:
     logger.log_step("PROMPT PROCESSING", "Encoding user prompt")
     current_metrics.prompt_processing_start = time.time()
 
-    prompt_tokens = [tokenizer.bos_id] + encode_message("user", kwargs["prompt"]) + encode_role("assistant")
+    prompt_tokens = [tokenizer.bos_id, *encode_message("user", kwargs["prompt"]), *encode_role("assistant")]
     current_metrics.prompt_length = len(prompt_tokens)
     logger.log_info(f"Prompt encoded to {current_metrics.prompt_length} tokens")
 
@@ -557,12 +560,13 @@ def run_gpt2(model_name: str, **kwargs) -> None:
     current_metrics.gpu_memory_after = memory_tracker.get_current_memory_mb()
 
     # Add tinygrad cache information
-    cache_info = f"~/.cache/tinygrad/cache.db ({os.path.getsize(os.path.expanduser('~/.cache/tinygrad/cache.db')) / 1024 / 1024:.1f}MB)"
+    cache_path = Path('~/.cache/tinygrad/cache.db').expanduser()
+    cache_size_mb = cache_path.stat().st_size / 1024 / 1024
+    cache_info = f"~/.cache/tinygrad/cache.db ({cache_size_mb:.1f}MB)"
     logger.log_info(f"Tinygrad JIT cache: {cache_info}")
 
     # Run prefill with timing
     logger.log_substep("Running prefill (prompt processing)")
-    prefill_start = time.time()
     from generation import prefill
 
     start_pos = prefill(model, prompt_tokens[:-1])
@@ -632,9 +636,8 @@ def run_gpt2(model_name: str, **kwargs) -> None:
     first_token_generated = False
     tokens_generated = 0
 
-    for i in range(kwargs["count"]):
-        # Time each token generation
-        token_start = time.time()
+    for _i in range(kwargs["count"]):
+        # Generate next token
         tok = model(
             Tensor([[last_tok]], device=device),
             start_pos,
@@ -695,8 +698,10 @@ def run_gpt2(model_name: str, **kwargs) -> None:
     logger.log_info(f"TTFT: {current_metrics.time_to_first_token:.3f}s")
     logger.log_info(f"Time per token: {current_metrics.time_per_token:.3f}s")
     logger.log_info(f"Tokens/sec: {current_metrics.tokens_per_second:.1f}")
+    gpu_memory_increase = current_metrics.gpu_memory_peak - current_metrics.gpu_memory_before
     logger.log_info(
-        f"GPU Memory: {current_metrics.gpu_memory_before:.1f}MB -> {current_metrics.gpu_memory_peak:.1f}MB (+{current_metrics.gpu_memory_peak - current_metrics.gpu_memory_before:.1f}MB)"
+        f"GPU Memory: {current_metrics.gpu_memory_before:.1f}MB -> {current_metrics.gpu_memory_peak:.1f}MB "
+        f"(+{gpu_memory_increase:.1f}MB)"
     )
 
     if not kwargs.get("noshow"):
@@ -870,8 +875,9 @@ def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwar
         }
 
     cache_before = get_cache_contents(cache_dir)
+    cache_size_mb = cache_before['total_size'] / (1024 * 1024)
     print(
-        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_before['total_size'] / (1024 * 1024):.1f} MB total"
+        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_size_mb:.1f} MB total"
     )
 
     # Display cache contents summary
@@ -903,8 +909,9 @@ def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwar
                 combined_state = "".join(cache_state_data)
                 cache_hash = hashlib.sha256(combined_state.encode()).hexdigest()[:16]
                 print(f"🔒 Cache state hash: {cache_hash}")
+                kernel_types_count = len(summary.get('kernel_types', {}))
                 print(
-                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {len(summary.get('kernel_types', {}))} types"
+                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {kernel_types_count} types"
                 )
     else:
         print("🆕 No existing cache found - first run will compile all kernels")
@@ -1124,7 +1131,7 @@ def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwar
 
             else:
                 # GPT-2 batch generation with proper TTFT timing
-                context_tokens, expected_role = chat_interface.prepare_generation_context(session)
+                context_tokens, _expected_role = chat_interface.prepare_generation_context(session)
                 context_text = chat_interface.decode_tokens(context_tokens)
 
                 # Manually calculate TTFT for batch generation

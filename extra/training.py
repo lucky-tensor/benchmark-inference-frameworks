@@ -37,7 +37,7 @@ def train(
 
     with Tensor.train():
         losses, accuracies = [], []
-        for i in (t := trange(steps, disable=CI)):
+        for _i in (t := trange(steps, disable=CI)):
             samp = np.random.randint(0, X_train.shape[0], size=(BS))
             x = Tensor(transform(X_train[samp]), requires_grad=False)
             y = Tensor(target_transform(Y_train[samp]))
@@ -47,7 +47,7 @@ def train(
                 loss, accuracy = loss.numpy(), accuracy.numpy()
                 losses.append(loss)
                 accuracies.append(accuracy)
-                t.set_description("loss %.2f accuracy %.2f" % (loss, accuracy))
+                t.set_description(f"loss {loss:.2f} accuracy {accuracy:.2f}")
     return [losses, accuracies]
 
 
@@ -64,7 +64,7 @@ def evaluate(
     Tensor.training = False
 
     def numpy_eval(Y_test, num_classes):
-        Y_test_preds_out = np.zeros(list(Y_test.shape) + [num_classes])
+        Y_test_preds_out = np.zeros([*list(Y_test.shape), num_classes])
         for i in trange((len(Y_test) - 1) // BS + 1, disable=CI):
             x = Tensor(transform(X_test[i * BS : (i + 1) * BS]))
             out = model.forward(x) if hasattr(model, "forward") else model(x)
@@ -76,5 +76,5 @@ def evaluate(
     if num_classes is None:
         num_classes = Y_test.max().astype(int) + 1
     acc, Y_test_pred = numpy_eval(Y_test, num_classes)
-    print("test set accuracy is %f" % acc)
+    print(f"test set accuracy is {acc:f}")
     return (acc, Y_test_pred) if return_predict else acc

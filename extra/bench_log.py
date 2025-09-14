@@ -79,8 +79,7 @@ if BENCHMARK_LOG:
         point = Point(BENCHMARK_LOG.value).tag("id", run_id).tag("index", i)
         point = point.tag("device", Device.DEFAULT)
         point = point.tag("attempt", attempt).tag("ref", ref).tag("commit", commit)
-        point = point.field(name, value).field("x", run)
-        return point
+        return point.field(name, value).field("x", run)
 
     @atexit.register
     def write_events():

@@ -7,7 +7,7 @@ from tinygrad import Tensor, dtypes
 
 class Int8Linear:
     def __init__(self, in_features, out_features, bias=False):
-        assert bias == False
+        assert not bias
         self.weight = Tensor.ones(out_features, in_features, dtype=dtypes.int8)
         self.scale = Tensor.ones(out_features, dtype=dtypes.half)
 
@@ -49,9 +49,9 @@ class Int8Embedding:
     def __call__(self, idx: Tensor) -> Tensor:
         if not hasattr(self, "arange"):
             self.arange = Tensor.arange(self.vocab_sz, requires_grad=False, device=self.weight.device).unsqueeze(-1)
-        big_shp = idx.shape + (self.vocab_sz, self.embed_sz)
+        big_shp = (*idx.shape, self.vocab_sz, self.embed_sz)
         arange = self.arange.expand(big_shp)
-        idx = idx.reshape(idx.shape + (1, 1)).expand(big_shp)
+        idx = idx.reshape((*idx.shape, 1, 1)).expand(big_shp)
         vals = (self.weight.cast(self.scale.dtype).T * self.scale).T
         return (arange == idx).mul(vals).sum(-2, dtype=vals.dtype)
 

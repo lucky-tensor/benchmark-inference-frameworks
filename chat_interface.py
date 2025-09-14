@@ -175,10 +175,7 @@ class LLaMA3ChatInterface(ChatInterface):
     def encode_role(self, role: str) -> list[int]:
         """Encode a role header with LLaMA 3 special tokens"""
         return (
-            [self.tokenizer.special_tokens["<|start_header_id|>"]]
-            + self.tokenizer.encode(role)
-            + [self.tokenizer.special_tokens["<|end_header_id|>"]]
-            + self.tokenizer.encode("\n\n")
+            [self.tokenizer.special_tokens["<|start_header_id|>"], *self.tokenizer.encode(role), self.tokenizer.special_tokens["<|end_header_id|>"], *self.tokenizer.encode("\n\n")]
         )
 
     def encode_message(self, message: ChatMessage) -> list[int]:
@@ -297,15 +294,15 @@ def create_chat_interface(model_type: str, tokenizer) -> ChatInterface:
     """
     model_type = model_type.lower()
 
-    if model_type.startswith("llama3") or model_type.startswith("llama-3"):
+    if model_type.startswith(("llama3", "llama-3")):
         return LLaMA3ChatInterface(tokenizer)
-    if model_type.startswith("gpt2") or model_type.startswith("gpt-2"):
+    if model_type.startswith(("gpt2", "gpt-2")):
         return GPT2ChatInterface(tokenizer)
     raise ValueError(f"Unsupported model type: {model_type}")
 
 
 # Convenience functions for common use cases
-def create_simple_session(user_message: str, system_prompt: str = None) -> ChatSession:
+def create_simple_session(user_message: str, system_prompt: str | None = None) -> ChatSession:
     """Create a simple chat session with one user message"""
     session = ChatSession([], system_prompt)
     session.add_message(MessageRole.USER, user_message)

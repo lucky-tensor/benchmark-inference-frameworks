@@ -72,7 +72,7 @@ def create_web_api(model, tokenizer, device, args):
         else:
             abort(400, "streaming required")
 
-        toks = [tokenizer.bos_id] + tokenizer.encode(rjson.get("prompt", ""), allow_special=True)
+        toks = [tokenizer.bos_id, *tokenizer.encode(rjson.get("prompt", ""), allow_special=True)]
 
         start_pos = prefill(model, toks[:-1])
         last_tok = toks[-1]

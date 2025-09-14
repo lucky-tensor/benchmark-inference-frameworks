@@ -144,10 +144,7 @@ class Transformer:
         else:
             logits = logits[:, -1, :]
 
-        if temperature < 1e-6:
-            ret = logits.argmax(-1)
-        else:
-            ret = (logits / temperature).softmax().multinomial()
+        ret = logits.argmax(-1) if temperature < 1e-06 else (logits / temperature).softmax().multinomial()
         return ret.flatten().realize()
 
     def __call__(self, tokens: Tensor | UOp, start_pos: Variable, temperature: float = 0.0) -> Tensor:
@@ -157,10 +154,10 @@ class Transformer:
 
 VOCAB_SIZE = 50257
 MODEL_PARAMS = {
-    "gpt2": dict(n_layers=12, n_heads=12, dim=768, norm_eps=1e-5, vocab_size=VOCAB_SIZE),  # 124M params
-    "gpt2-medium": dict(n_layers=24, n_heads=16, dim=1024, norm_eps=1e-5, vocab_size=VOCAB_SIZE),  # 350M params
-    "gpt2-large": dict(n_layers=36, n_heads=20, dim=1280, norm_eps=1e-5, vocab_size=VOCAB_SIZE),  # 774M params
-    "gpt2-xl": dict(n_layers=48, n_heads=25, dim=1600, norm_eps=1e-5, vocab_size=VOCAB_SIZE),  # 1558M params
+    "gpt2": {"n_layers": 12, "n_heads": 12, "dim": 768, "norm_eps": 1e-5, "vocab_size": VOCAB_SIZE},  # 124M params
+    "gpt2-medium": {"n_layers": 24, "n_heads": 16, "dim": 1024, "norm_eps": 1e-5, "vocab_size": VOCAB_SIZE},  # 350M params
+    "gpt2-large": {"n_layers": 36, "n_heads": 20, "dim": 1280, "norm_eps": 1e-5, "vocab_size": VOCAB_SIZE},  # 774M params
+    "gpt2-xl": {"n_layers": 48, "n_heads": 25, "dim": 1600, "norm_eps": 1e-5, "vocab_size": VOCAB_SIZE},  # 1558M params
 }
 
 
@@ -256,7 +253,7 @@ class GPT2:
         prompt_tokens = self.tokenizer.encode(prompt, allowed_special={"<|endoftext|>"})
         toks = [prompt_tokens[:] for _ in range(batch_size)]
         start_pos = 0
-        for _ in trange(max_length, disable=(timing == True)):
+        for _ in trange(max_length, disable=(timing)):
             GlobalCounters.reset()
             if timing:
                 print("")
@@ -265,14 +262,14 @@ class GPT2:
                 Timing(
                     "ran model in ",
                     on_exit=(
-                        lambda et: (
-                            f", {(GlobalCounters.time_sum_s - st) * 1e3:.2f} ms on {Device.DEFAULT}"
+                        lambda et, start_time=st: (
+                            f", {(GlobalCounters.time_sum_s - start_time) * 1e3:.2f} ms on {Device.DEFAULT}"
                             if DEBUG >= 2
                             else ""
                         )
                         + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, {GlobalCounters.global_mem * 1e-9:.2f} GB"
                         + (
-                            f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - st):.2f} GB/s"
+                            f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s"
                             if DEBUG >= 2
                             else ""
                         )
@@ -321,10 +318,9 @@ class GPT2:
             # Fallback for single token
             tokens = Variable("tokens", 0, VOCAB_SIZE - 1).bind(tokens_sequence)
 
-        tok = self.model(
+        return self.model(
             tokens, Variable("start_pos", 1 if start_pos else 0, MAX_CONTEXT - 1).bind(start_pos), temperature
         ).item()
-        return tok
 
     def prefill(self, tokens, start_pos: int = 0):
         """Prefill the model with context tokens for faster generation"""
@@ -444,7 +440,8 @@ if __name__ == "__main__":
         # validate output!
         if args.temperature == 0 and args.model_size == "gpt2-medium" and args.count == 10:
             expected = {
-                default_prompt: "What is the answer to life, the universe, and everything?\n\nThe answer is that we are all one",
+                default_prompt: "What is the answer to life, the universe, and everything?\n\n"
+                "The answer is that we are all one",
                 "Hello.": "Hello. I'm a little late to the party, but",
             }
             try:
