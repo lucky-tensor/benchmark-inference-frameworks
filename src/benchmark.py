@@ -28,15 +28,17 @@ class BenchmarkResult:
 
     # Timing metrics (in seconds)
     total_time: float
-    first_token_time: float
+    cold_start_time: float  # Time for first inference (including JIT compilation)
+    first_token_time: float  # Time for first token after cold start
     avg_token_time: float
     min_token_time: float
     max_token_time: float
-    token_times: list[float]
+    token_times: list[float]  # Excludes cold start time
 
-    # Throughput metrics
+    # Throughput metrics (excluding cold start)
     avg_tokens_per_second: float
     peak_tokens_per_second: float
+    steady_state_avg_tokens_per_second: float  # Average after warmup
 
     # Memory metrics (in GB)
     peak_memory_gb: float
@@ -337,13 +339,55 @@ def run_benchmark(
     # Prepare input
     input_data, start_pos = backend.prepare_input(model, tokenizer)
 
-    # Run benchmark
-    print(f"\nRunning {iterations} iterations...")
-    token_times = []
-    first_token_time = None
+    # Run cold start measurement
+    print("\n🥶 Cold Start Measurement (includes JIT compilation)")
+    print("=" * 50)
 
-    # Track memory usage
+    # Memory tracking before cold start
+    if backend.get_name() == "PyTorch":
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.reset_peak_memory_stats()
+
+    # Time the cold start (first inference)
+    cold_start_time = time.perf_counter()
+
+    try:
+        cold_start_token = backend.run_inference(model, input_data, start_pos)
+
+        if backend.get_name() == "PyTorch":
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+
+        cold_start_end = time.perf_counter()
+        cold_start_duration = cold_start_end - cold_start_time
+
+        print(f"❄️  Cold start: {cold_start_duration * 1000:6.2f}ms, {1.0 / cold_start_duration:6.1f} tok/s")
+
+    except Exception as e:
+        print(f"❌ Cold start failed: {e}")
+        raise
+
+    # Track memory usage after cold start
     peak_memory_gb = 0.0
+    if backend.get_name() == "PyTorch":
+        import torch
+
+        if torch.cuda.is_available():
+            peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
+    else:
+        # For TinyGrad, use model memory as estimate
+        peak_memory_gb = model_info["model_memory_gb"]
+
+    # Run steady-state benchmark (excluding cold start)
+    print(f"\n🔥 Steady-State Benchmark ({iterations} iterations)")
+    print("=" * 50)
+    token_times = []
+    warmup_iterations = min(3, iterations // 4)  # Use first 25% or 3 iterations as warmup
 
     for i in range(iterations):
         # Memory tracking (framework-specific)
@@ -352,13 +396,12 @@ def run_benchmark(
 
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
-                torch.cuda.memory_allocated() / (1024**3)
 
         # Time the inference
         start_time = time.perf_counter()
 
         try:
-            backend.run_inference(model, input_data, start_pos + i)
+            backend.run_inference(model, input_data, start_pos + i + 1)  # +1 because cold start used start_pos
 
             if backend.get_name() == "PyTorch":
                 import torch
@@ -367,29 +410,26 @@ def run_benchmark(
                     torch.cuda.synchronize()
 
             end_time = time.perf_counter()
-
             iteration_time = end_time - start_time
             token_times.append(iteration_time)
 
-            if i == 0:
-                first_token_time = iteration_time
-
-            # Track memory
+            # Track memory (update peak if higher)
             if backend.get_name() == "PyTorch":
                 import torch
 
                 if torch.cuda.is_available():
                     current_memory = torch.cuda.max_memory_allocated() / (1024**3)
                     peak_memory_gb = max(peak_memory_gb, current_memory)
-            else:
-                # For TinyGrad, use model memory as estimate
-                peak_memory_gb = model_info["model_memory_gb"]
 
             tokens_per_second = 1.0 / iteration_time
-            print(f"Iteration {i + 1:2d}: {iteration_time * 1000:6.2f}ms, {tokens_per_second:6.1f} tok/s")
+            status_symbol = "🌡️" if i < warmup_iterations else "⚡"
+            warmup_text = " (warmup)" if i < warmup_iterations else ""
+            print(
+                f"{status_symbol} Iteration {i + 1:2d}: {iteration_time * 1000:6.2f}ms, {tokens_per_second:6.1f} tok/s{warmup_text}"
+            )
 
         except Exception as e:
-            print(f"Error in iteration {i + 1}: {e}")
+            print(f"❌ Error in iteration {i + 1}: {e}")
             break
 
     # Cleanup
@@ -399,6 +439,7 @@ def run_benchmark(
     if not token_times:
         raise RuntimeError("No successful iterations completed")
 
+    # Overall steady-state metrics
     avg_token_time = sum(token_times) / len(token_times)
     total_time = sum(token_times)
     min_token_time = min(token_times)
@@ -407,18 +448,32 @@ def run_benchmark(
     avg_tokens_per_second = 1.0 / avg_token_time
     peak_tokens_per_second = 1.0 / min_token_time
 
+    # Calculate steady-state metrics (excluding warmup)
+    warmup_iterations = min(3, len(token_times) // 4)
+    steady_state_times = token_times[warmup_iterations:] if len(token_times) > warmup_iterations else token_times
+
+    if steady_state_times:
+        steady_state_avg_time = sum(steady_state_times) / len(steady_state_times)
+        steady_state_avg_tokens_per_second = 1.0 / steady_state_avg_time
+        first_steady_token_time = steady_state_times[0] if steady_state_times else avg_token_time
+    else:
+        steady_state_avg_tokens_per_second = avg_tokens_per_second
+        first_steady_token_time = avg_token_time
+
     return BenchmarkResult(
         framework=backend.get_name(),
         model_size=model_size,
         iterations=len(token_times),
         total_time=total_time,
-        first_token_time=first_token_time or 0.0,
+        cold_start_time=cold_start_duration,
+        first_token_time=first_steady_token_time,  # First token after cold start
         avg_token_time=avg_token_time,
         min_token_time=min_token_time,
         max_token_time=max_token_time,
         token_times=token_times,
         avg_tokens_per_second=avg_tokens_per_second,
         peak_tokens_per_second=peak_tokens_per_second,
+        steady_state_avg_tokens_per_second=steady_state_avg_tokens_per_second,
         peak_memory_gb=peak_memory_gb,
         model_memory_gb=model_info["model_memory_gb"],
         total_parameters=model_info["total_parameters"],
@@ -440,7 +495,11 @@ def print_benchmark_results(result: BenchmarkResult) -> None:
     if result.quantization:
         print(f"Quantization: {result.quantization}")
 
-    print("\n⏱️  Performance Metrics:")
+    print("\n❄️  Cold Start Metrics:")
+    print(f"  Cold start latency:  {result.cold_start_time * 1000:6.2f}ms (includes JIT compilation)")
+    print(f"  Cold start throughput: {1.0 / result.cold_start_time:6.1f} tokens/second")
+
+    print("\n⏱️  Steady-State Performance Metrics:")
     print(f"  Average latency:     {result.avg_token_time * 1000:6.2f}ms per token")
     print(f"  First token latency:  {result.first_token_time * 1000:6.2f}ms")
     print(f"  Min latency:         {result.min_token_time * 1000:6.2f}ms per token")
@@ -449,6 +508,11 @@ def print_benchmark_results(result: BenchmarkResult) -> None:
     print("\n🚀 Throughput Metrics:")
     print(f"  Average throughput:  {result.avg_tokens_per_second:6.1f} tokens/second")
     print(f"  Peak throughput:     {result.peak_tokens_per_second:6.1f} tokens/second")
+    print(f"  Steady-state avg:    {result.steady_state_avg_tokens_per_second:6.1f} tokens/second")
+
+    # Show performance improvement from cold start to steady state
+    improvement_factor = result.steady_state_avg_tokens_per_second / (1.0 / result.cold_start_time)
+    print(f"  Warmup improvement:  {improvement_factor:6.1f}x faster than cold start")
 
     print("\n💾 Memory Metrics:")
     print(f"  Model memory:        {result.model_memory_gb:6.2f} GB")
@@ -470,39 +534,65 @@ def compare_results(results: list[BenchmarkResult]) -> None:
     print(f"{'Metric':<25} {' | '.join(f'{fw:>15}' for fw in frameworks)}")
     print("-" * (25 + len(frameworks) * 18))
 
-    # Performance metrics
+    # Cold start metrics
+    cold_start_times = [r.cold_start_time * 1000 for r in results]
+    cold_start_throughputs = [1.0 / r.cold_start_time for r in results]
+
+    print(f"{'Cold Start (ms)':<25} {' | '.join(f'{cs:>15.2f}' for cs in cold_start_times)}")
+    print(f"{'Cold Start (tok/s)':<25} {' | '.join(f'{cst:>15.1f}' for cst in cold_start_throughputs)}")
+
+    print()  # Separator
+
+    # Steady-state metrics
     latencies = [r.avg_token_time * 1000 for r in results]
     throughputs = [r.avg_tokens_per_second for r in results]
+    steady_throughputs = [r.steady_state_avg_tokens_per_second for r in results]
     memories = [r.peak_memory_gb for r in results]
 
     print(f"{'Avg Latency (ms)':<25} {' | '.join(f'{lat:>15.2f}' for lat in latencies)}")
     print(f"{'Avg Throughput (tok/s)':<25} {' | '.join(f'{thr:>15.1f}' for thr in throughputs)}")
+    print(f"{'Steady-State (tok/s)':<25} {' | '.join(f'{st:>15.1f}' for st in steady_throughputs)}")
     print(f"{'Peak Memory (GB)':<25} {' | '.join(f'{mem:>15.2f}' for mem in memories)}")
 
     # Calculate relative performance
     if len(results) == 2:
         r1, r2 = results
 
+        # Calculate various performance ratios
+        cold_start_ratio = r2.cold_start_time / r1.cold_start_time
         throughput_ratio = r1.avg_tokens_per_second / r2.avg_tokens_per_second
+        steady_state_ratio = r1.steady_state_avg_tokens_per_second / r2.steady_state_avg_tokens_per_second
         latency_ratio = r2.avg_token_time / r1.avg_token_time
         memory_ratio = r2.peak_memory_gb / r1.peak_memory_gb
 
         print(f"\n🏁 Performance Comparison ({r1.framework} vs {r2.framework}):")
 
-        if throughput_ratio > 1:
-            print(f"  {r1.framework} is {throughput_ratio:.1f}x faster in throughput")
+        # Cold start comparison
+        if cold_start_ratio > 1:
+            print(f"  ❄️  {r1.framework} has {cold_start_ratio:.1f}x faster cold start")
         else:
-            print(f"  {r2.framework} is {1 / throughput_ratio:.1f}x faster in throughput")
+            print(f"  ❄️  {r2.framework} has {1 / cold_start_ratio:.1f}x faster cold start")
+
+        # Steady-state comparison
+        if steady_state_ratio > 1:
+            print(f"  🔥 {r1.framework} is {steady_state_ratio:.1f}x faster in steady-state throughput")
+        else:
+            print(f"  🔥 {r2.framework} is {1 / steady_state_ratio:.1f}x faster in steady-state throughput")
+
+        if throughput_ratio > 1:
+            print(f"  ⚡ {r1.framework} is {throughput_ratio:.1f}x faster in average throughput")
+        else:
+            print(f"  ⚡ {r2.framework} is {1 / throughput_ratio:.1f}x faster in average throughput")
 
         if latency_ratio > 1:
-            print(f"  {r1.framework} has {latency_ratio:.1f}x lower latency")
+            print(f"  ⏱️  {r1.framework} has {latency_ratio:.1f}x lower latency")
         else:
-            print(f"  {r2.framework} has {1 / latency_ratio:.1f}x lower latency")
+            print(f"  ⏱️  {r2.framework} has {1 / latency_ratio:.1f}x lower latency")
 
         if memory_ratio > 1:
-            print(f"  {r1.framework} uses {memory_ratio:.1f}x less memory")
+            print(f"  💾 {r1.framework} uses {memory_ratio:.1f}x less memory")
         else:
-            print(f"  {r2.framework} uses {1 / memory_ratio:.1f}x less memory")
+            print(f"  💾 {r2.framework} uses {1 / memory_ratio:.1f}x less memory")
 
 
 def detect_model_type(model_path: Path) -> str:
