@@ -20,13 +20,12 @@ from tinygrad import Device, Tensor
 from tinygrad.nn.state import get_parameters
 
 from ..common.chat_interface import (
-    ChatMessage,
     ChatSession,
     LLaMA3ChatInterface,
     MessageRole,
 )
-from .model_config import build_transformer, resolve_model_path
 from ..common.tokenizer import Tokenizer
+from .model_config import build_transformer, resolve_model_path
 
 
 def main():

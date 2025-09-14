@@ -1,7 +1,7 @@
 [project]
 name = "tinygrad-demo"
 version = "0.1.0"
-description = "Add your description here"
+description = "TinyGrad LLaMA 3 implementation with unified benchmarking"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -15,6 +15,9 @@ dependencies = [
     "huggingface-hub>=0.34.4",
     "torch>=2.0.0",
 ]
+
+[project.scripts]
+tinygrad-demo = "src.main:main"
 
 [project.optional-dependencies]
 dev = [
@@ -166,4 +169,10 @@ skips = [
     "B602",  # subprocess_popen_with_shell_equals_true - handled by ruff S602
     "B603",  # subprocess_without_shell_equals_false - handled by ruff S603
     "B607",  # start_process_with_partial_path - handled by ruff S607
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.6",
+    "ruff>=0.13.0",
 ]

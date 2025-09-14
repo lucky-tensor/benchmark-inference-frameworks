@@ -8,10 +8,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# Add src directory to Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Add parent directory to Python path to access src modules
+sys.path.insert(0, str(Path(__file__).parent))
 
-from src.llama.llama3 import main as llama_main
+from llama.llama3 import main as llama_main
 
 
 def main():
@@ -24,7 +24,7 @@ Examples:
   uv run main.py --model llama3-1b
   uv run main.py --model llama3-8b --quantize int8
   uv run main.py --model llama3-70b --benchmark
-        """
+        """,
     )
 
     # Model selection (simplified)
@@ -32,7 +32,7 @@ Examples:
         "--model",
         choices=["llama3-1b", "llama3-8b", "llama3-70b", "llama3-405b"],
         default="llama3-1b",
-        help="Model to run (default: llama3-1b)"
+        help="Model to run (default: llama3-1b)",
     )
 
     # Core options
@@ -55,12 +55,7 @@ Examples:
     args = parser.parse_args()
 
     # Map simplified model names to size codes
-    model_mapping = {
-        "llama3-1b": "1B",
-        "llama3-8b": "8B",
-        "llama3-70b": "70B",
-        "llama3-405b": "405B"
-    }
+    model_mapping = {"llama3-1b": "1B", "llama3-8b": "8B", "llama3-70b": "70B", "llama3-405b": "405B"}
 
     # Convert to the format expected by the original llama3.py
     sys.argv = ["llama3.py"]

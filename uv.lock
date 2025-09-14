@@ -888,6 +888,12 @@ dev = [
     { name = "ruff" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "bandit", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=1.8.0" },
@@ -904,6 +910,12 @@ requires-dist = [
     { name = "transformers", specifier = ">=4.56.1" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "bandit", specifier = ">=1.8.6" },
+    { name = "ruff", specifier = ">=0.13.0" },
+]
 
 [[package]]
 name = "tokenizers"

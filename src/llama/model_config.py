@@ -105,6 +105,7 @@ def build_transformer(
     load_weights_flag=True,
 ):
     from extra.models.llama import Transformer
+
     from ..common.quantization import Int8Embedding, Int8Linear, NF4Linear
 
     if quantize == "int8":

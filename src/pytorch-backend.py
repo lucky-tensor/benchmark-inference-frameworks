@@ -8,24 +8,27 @@ direct performance comparison with TinyGrad runtime.
 
 import argparse
 import math
+import sys
 import time
 from pathlib import Path
-from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# Add current directory to Python path
+sys.path.insert(0, str(Path(__file__).parent))
 
 # ============================================================================
 # RoPE (Rotary Position Embedding) Implementation
 # ============================================================================
 
+
 def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, device="cuda") -> torch.Tensor:
     """Precompute the frequency tensor for rotary embeddings."""
-    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2, device=device)[:(dim // 2)] / dim))
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2, device=device)[: (dim // 2)] / dim))
     freqs = torch.arange(end, device=device).unsqueeze(1) * freqs.unsqueeze(0)
-    return torch.stack([freqs.cos(), freqs.sin()], dim=-1).view(1, end, 1, dim//2, 2)
+    return torch.stack([freqs.cos(), freqs.sin()], dim=-1).view(1, end, 1, dim // 2, 2)
 
 
 def complex_mult(A: torch.Tensor, c: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
@@ -36,9 +39,11 @@ def complex_mult(A: torch.Tensor, c: torch.Tensor, d: torch.Tensor) -> torch.Ten
     return torch.cat([ro, co], dim=-1)
 
 
-def apply_rotary_emb(xq: torch.Tensor, xk: torch.Tensor, freqs_cis: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def apply_rotary_emb(xq: torch.Tensor, xk: torch.Tensor, freqs_cis: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply rotary embeddings to query and key tensors."""
-    assert freqs_cis.shape[1] == xq.shape[1] == xk.shape[1], f"freqs_cis shape mismatch {freqs_cis.shape} xq:{xq.shape} xk:{xk.shape}"
+    assert freqs_cis.shape[1] == xq.shape[1] == xk.shape[1], (
+        f"freqs_cis shape mismatch {freqs_cis.shape} xq:{xq.shape} xk:{xk.shape}"
+    )
 
     xq = xq.reshape(*xq.shape[0:-1], -1, 2)
     xk = xk.reshape(*xk.shape[0:-1], -1, 2)
@@ -62,6 +67,7 @@ def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
 # RMS Normalization
 # ============================================================================
 
+
 class RMSNorm(nn.Module):
     """Root Mean Square Layer Normalization."""
 
@@ -78,10 +84,11 @@ class RMSNorm(nn.Module):
 # Attention Module
 # ============================================================================
 
+
 class Attention(nn.Module):
     """Multi-head attention with KV cache support."""
 
-    def __init__(self, dim: int, n_heads: int, n_kv_heads: Optional[int] = None, max_context: int = 0):
+    def __init__(self, dim: int, n_heads: int, n_kv_heads: int | None = None, max_context: int = 0):
         super().__init__()
         self.n_heads = n_heads
         self.n_kv_heads = n_kv_heads if n_kv_heads is not None else n_heads
@@ -98,11 +105,7 @@ class Attention(nn.Module):
         self.register_buffer("cache_kv", None, persistent=False)
 
     def forward(
-        self,
-        x: torch.Tensor,
-        start_pos: int,
-        freqs_cis: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, start_pos: int, freqs_cis: torch.Tensor, mask: torch.Tensor | None = None
     ) -> torch.Tensor:
         bsz, seqlen, _ = x.shape
 
@@ -118,16 +121,15 @@ class Attention(nn.Module):
         if self.max_context > 0:
             if self.cache_kv is None:
                 self.cache_kv = torch.zeros(
-                    2, bsz, self.max_context, self.n_kv_heads, self.head_dim,
-                    dtype=x.dtype, device=x.device
+                    2, bsz, self.max_context, self.n_kv_heads, self.head_dim, dtype=x.dtype, device=x.device
                 )
 
             # Update cache
-            self.cache_kv[0, :, start_pos:start_pos+seqlen] = xk
-            self.cache_kv[1, :, start_pos:start_pos+seqlen] = xv
+            self.cache_kv[0, :, start_pos : start_pos + seqlen] = xk
+            self.cache_kv[1, :, start_pos : start_pos + seqlen] = xv
 
-            keys = self.cache_kv[0, :, :start_pos+seqlen]
-            values = self.cache_kv[1, :, :start_pos+seqlen]
+            keys = self.cache_kv[0, :, : start_pos + seqlen]
+            values = self.cache_kv[1, :, : start_pos + seqlen]
         else:
             keys, values = xk, xv
 
@@ -151,6 +153,7 @@ class Attention(nn.Module):
 # Feed Forward Module
 # ============================================================================
 
+
 class FeedForward(nn.Module):
     """SwiGLU feed forward network."""
 
@@ -167,6 +170,7 @@ class FeedForward(nn.Module):
 # ============================================================================
 # Transformer Block
 # ============================================================================
+
 
 class TransformerBlock(nn.Module):
     """Single transformer block with attention and feed forward."""
@@ -191,16 +195,16 @@ class TransformerBlock(nn.Module):
         x: torch.Tensor,
         start_pos: int,
         freqs_cis: torch.Tensor,
-        mask: Optional[torch.Tensor] = None,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         h = x + self.attention(self.attention_norm(x), start_pos, freqs_cis, mask)
-        out = h + self.feed_forward(self.ffn_norm(h))
-        return out
+        return h + self.feed_forward(self.ffn_norm(h))
 
 
 # ============================================================================
 # PyTorch LLaMA Model
 # ============================================================================
+
 
 class PyTorchLLaMA(nn.Module):
     """Complete LLaMA model implemented in PyTorch."""
@@ -213,7 +217,7 @@ class PyTorchLLaMA(nn.Module):
         n_layers: int,
         norm_eps: float,
         vocab_size: int,
-        n_kv_heads: Optional[int] = None,
+        n_kv_heads: int | None = None,
         rope_theta: float = 10000.0,
         max_context: int = 1024,
     ):
@@ -226,10 +230,12 @@ class PyTorchLLaMA(nn.Module):
         self.max_context = max_context
 
         self.tok_embeddings = nn.Embedding(vocab_size, dim)
-        self.layers = nn.ModuleList([
-            TransformerBlock(dim, hidden_dim, n_heads, self.n_kv_heads, norm_eps, max_context)
-            for _ in range(n_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [
+                TransformerBlock(dim, hidden_dim, n_heads, self.n_kv_heads, norm_eps, max_context)
+                for _ in range(n_layers)
+            ]
+        )
         self.norm = RMSNorm(dim, norm_eps)
         self.output = nn.Linear(dim, vocab_size, bias=False)
 
@@ -250,21 +256,18 @@ class PyTorchLLaMA(nn.Module):
         alpha_f: float = 0.0,
         alpha_p: float = 0.0,
     ) -> torch.Tensor:
-        bsz, seqlen = tokens.shape
+        _bsz, seqlen = tokens.shape
         h = self.tok_embeddings(tokens)
 
         # Get rotary embeddings for current sequence
-        freqs_cis = self.freqs_cis[:, start_pos:start_pos+seqlen].to(h.dtype)
+        freqs_cis = self.freqs_cis[:, start_pos : start_pos + seqlen].to(h.dtype)
 
         # Create causal mask if needed
         mask = None
         if seqlen > 1:
-            mask = torch.full(
-                (seqlen, start_pos + seqlen),
-                float("-inf"),
-                dtype=h.dtype,
-                device=h.device
-            ).triu(start_pos + 1)
+            mask = torch.full((seqlen, start_pos + seqlen), float("-inf"), dtype=h.dtype, device=h.device).triu(
+                start_pos + 1
+            )
             mask = mask.unsqueeze(0).unsqueeze(0)  # Add batch and head dimensions
 
         # Apply transformer layers
@@ -284,14 +287,14 @@ class PyTorchLLaMA(nn.Module):
         # Simple sampling (can be enhanced with top_k, top_p later)
         if temperature < 1e-6:
             return logits.argmax(dim=-1, keepdim=True)
-        else:
-            probs = F.softmax(logits, dim=-1)
-            return torch.multinomial(probs, num_samples=1)
+        probs = F.softmax(logits, dim=-1)
+        return torch.multinomial(probs, num_samples=1)
 
 
 # ============================================================================
 # Tokenizer Interface
 # ============================================================================
+
 
 class PyTorchTokenizer:
     """Wrapper around tinygrad tokenizer for PyTorch compatibility."""
@@ -299,15 +302,16 @@ class PyTorchTokenizer:
     def __init__(self, tokenizer_path: str):
         # Import tinygrad tokenizer
         import sys
+
         sys.path.insert(0, str(Path(__file__).parent / "src"))
-        from src.common.tokenizer import Tokenizer
+        from common.tokenizer import Tokenizer
 
         self.tokenizer = Tokenizer(tokenizer_path)
         self.bos_id = self.tokenizer.bos_id
         self.special_tokens = self.tokenizer.special_tokens
         self.stop_tokens = [
             self.tokenizer.special_tokens["<|end_of_text|>"],
-            self.tokenizer.special_tokens["<|eot_id|>"]
+            self.tokenizer.special_tokens["<|eot_id|>"],
         ]
 
     def encode(self, text: str, allow_special: bool = False) -> list[int]:
@@ -321,54 +325,88 @@ class PyTorchTokenizer:
 # Weight Loading from TinyGrad Format
 # ============================================================================
 
+
 def load_pytorch_weights_from_tinygrad(model: PyTorchLLaMA, weight_path: Path) -> None:
-    """Load weights from tinygrad format into PyTorch model."""
+    """Load weights from tinygrad GGUF format into PyTorch model."""
     # Import tinygrad components
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent / "src"))
-    from src.llama.model_config import load_weights
-    from tinygrad import Tensor
+    from llama.model_config import load_weights
 
     print(f"Loading weights from {weight_path}...")
     tinygrad_weights = load_weights(str(weight_path))
 
-    # Convert tinygrad weights to PyTorch format
-    pytorch_weights = {}
-    for name, tinygrad_tensor in tinygrad_weights.items():
-        # Convert tinygrad tensor to numpy then to PyTorch
-        if hasattr(tinygrad_tensor, 'numpy'):
+    # Convert tinygrad weights to PyTorch format with proper name mapping
+    state_dict = {}
+
+    for tg_name, tinygrad_tensor in tinygrad_weights.items():
+        # Convert tinygrad tensor to PyTorch tensor
+        if hasattr(tinygrad_tensor, "numpy"):
             numpy_array = tinygrad_tensor.numpy()
         else:
-            # Realize the tensor first if needed
             numpy_array = tinygrad_tensor.realize().numpy()
 
         pytorch_tensor = torch.from_numpy(numpy_array)
-        pytorch_weights[name] = pytorch_tensor
 
-    # Map tinygrad weight names to PyTorch model structure
-    state_dict = {}
-    for name, tensor in pytorch_weights.items():
-        if name.startswith("layers."):
-            # Handle layer weights
-            layer_key = name.replace("layers.", "layers.")
-            state_dict[layer_key] = tensor
-        elif name == "tok_embeddings.weight":
-            state_dict["tok_embeddings.weight"] = tensor
-        elif name == "norm.weight":
-            state_dict["norm.weight"] = tensor
-        elif name == "output.weight":
-            state_dict["output.weight"] = tensor
+        # Map GGUF weight names to PyTorch model structure
+        if tg_name.startswith("blk."):
+            # Extract layer number and component
+            parts = tg_name.split(".")
+            layer_num = parts[1]
+            component = ".".join(parts[2:])
+
+            # Map component names
+            if component == "attn_q.weight":
+                pt_name = f"layers.{layer_num}.attention.wq.weight"
+            elif component == "attn_k.weight":
+                pt_name = f"layers.{layer_num}.attention.wk.weight"
+            elif component == "attn_v.weight":
+                pt_name = f"layers.{layer_num}.attention.wv.weight"
+            elif component == "attn_output.weight":
+                pt_name = f"layers.{layer_num}.attention.wo.weight"
+            elif component == "attn_norm.weight":
+                pt_name = f"layers.{layer_num}.attention_norm.weight"
+            elif component == "ffn_gate.weight":
+                pt_name = f"layers.{layer_num}.feed_forward.w1.weight"
+            elif component == "ffn_down.weight":
+                pt_name = f"layers.{layer_num}.feed_forward.w2.weight"
+            elif component == "ffn_up.weight":
+                pt_name = f"layers.{layer_num}.feed_forward.w3.weight"
+            elif component == "ffn_norm.weight":
+                pt_name = f"layers.{layer_num}.ffn_norm.weight"
+            else:
+                print(f"Unknown layer component: {component}")
+                continue
+
+        elif tg_name == "token_embd.weight":
+            pt_name = "tok_embeddings.weight"
+        elif tg_name == "output_norm.weight":
+            pt_name = "norm.weight"
+        elif tg_name == "output.weight":
+            pt_name = "output.weight"
+        elif tg_name == "rope_freqs.weight":
+            # Skip rope frequencies - they are computed, not loaded
+            continue
         else:
-            # Try to match the name directly
-            state_dict[name] = tensor
+            print(f"Unknown weight: {tg_name}")
+            continue
 
-    # Load the state dict with strict=False to handle any mismatches
+        state_dict[pt_name] = pytorch_tensor
+
+    # Load the state dict
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
 
     if missing_keys:
-        print(f"Warning: Missing keys in PyTorch model: {missing_keys[:5]}...")
+        print(f"Missing keys in PyTorch model: {len(missing_keys)} keys")
+        print(f"First few: {missing_keys[:3]}")
     if unexpected_keys:
-        print(f"Warning: Unexpected keys in weights: {unexpected_keys[:5]}...")
+        print(f"Unexpected keys in weights: {len(unexpected_keys)} keys")
+        print(f"First few: {unexpected_keys[:3]}")
+
+    loaded_keys = len(state_dict)
+    total_keys = len(model.state_dict())
+    print(f"Successfully loaded {loaded_keys}/{total_keys} weights")
 
     print("Weights loaded successfully!")
 
@@ -376,6 +414,7 @@ def load_pytorch_weights_from_tinygrad(model: PyTorchLLaMA, weight_path: Path) -
 # ============================================================================
 # Benchmarking Functions
 # ============================================================================
+
 
 def run_pytorch_benchmark(model: PyTorchLLaMA, tokenizer: PyTorchTokenizer, args) -> None:
     """Run PyTorch benchmark matching tinygrad benchmark."""
@@ -386,29 +425,29 @@ def run_pytorch_benchmark(model: PyTorchLLaMA, tokenizer: PyTorchTokenizer, args
     # Prepare benchmark input (matching tinygrad benchmark)
     def encode_message(role: str, content: str) -> list[int]:
         if role == "user":
-            return (
-                [tokenizer.special_tokens["<|start_header_id|>"]] +
-                tokenizer.encode("user") +
-                [tokenizer.special_tokens["<|end_header_id|>"]] +
-                tokenizer.encode("\n\n" + content.strip()) +
-                [tokenizer.special_tokens["<|eot_id|>"]]
-            )
+            return [
+                tokenizer.special_tokens["<|start_header_id|>"],
+                *tokenizer.encode("user"),
+                tokenizer.special_tokens["<|end_header_id|>"],
+                *tokenizer.encode("\n\n" + content.strip()),
+                tokenizer.special_tokens["<|eot_id|>"],
+            ]
         return []
 
     def encode_role(role: str) -> list[int]:
-        return (
-            [tokenizer.special_tokens["<|start_header_id|>"]] +
-            tokenizer.encode(role) +
-            [tokenizer.special_tokens["<|end_header_id|>"]] +
-            tokenizer.encode("\n\n")
-        )
+        return [
+            tokenizer.special_tokens["<|start_header_id|>"],
+            *tokenizer.encode(role),
+            tokenizer.special_tokens["<|end_header_id|>"],
+            *tokenizer.encode("\n\n"),
+        ]
 
-    toks = [tokenizer.bos_id] + encode_message("user", "Hello.") + encode_role("assistant")
+    toks = [tokenizer.bos_id, *encode_message("user", "Hello."), *encode_role("assistant")]
 
     # Prefill (similar to tinygrad prefill)
     with torch.no_grad():
         prefill_tokens = torch.tensor([toks[:-1]], device=device, dtype=torch.long)
-        _ = model(prefill_tokens, 0, temperature=float('nan'))  # Just run forward pass
+        _ = model(prefill_tokens, 0, temperature=float("nan"))  # Just run forward pass
 
     start_pos = len(toks) - 1
     last_tok = toks[-1]
@@ -440,7 +479,7 @@ def run_pytorch_benchmark(model: PyTorchLLaMA, tokenizer: PyTorchTokenizer, args
 
             token_speed = 1.0 / iteration_time
 
-            print(f"Iteration {i+1:2d}: {iteration_time*1000:6.2f}ms, {token_speed:6.1f} tok/s")
+            print(f"Iteration {i + 1:2d}: {iteration_time * 1000:6.2f}ms, {token_speed:6.1f} tok/s")
 
             start_pos += 1
             last_tok = tok.item()
@@ -449,8 +488,8 @@ def run_pytorch_benchmark(model: PyTorchLLaMA, tokenizer: PyTorchTokenizer, args
     avg_time = sum(times) / len(times)
     avg_speed = 1.0 / avg_time
 
-    print(f"\nPyTorch Benchmark Results:")
-    print(f"Average time per token: {avg_time*1000:.2f}ms")
+    print("\nPyTorch Benchmark Results:")
+    print(f"Average time per token: {avg_time * 1000:.2f}ms")
     print(f"Average tokens per second: {avg_speed:.1f} tok/s")
     print(f"Peak memory usage: {total_memory:.2f}GB")
 
@@ -489,6 +528,7 @@ MODEL_CONFIGS = {
 # Main CLI Interface
 # ============================================================================
 
+
 def main():
     parser = argparse.ArgumentParser(description="PyTorch LLaMA 3 Benchmark")
     parser.add_argument("--model", type=Path, help="Model weights path")
@@ -518,7 +558,20 @@ def main():
 
     # Load weights if provided
     if args.model:
-        load_pytorch_weights_from_tinygrad(model, args.model)
+        # If model is a directory, look for GGUF file
+        if args.model.is_dir():
+            # Look for GGUF file in directory
+            gguf_files = list(args.model.glob("*.gguf"))
+            if gguf_files:
+                weight_path = gguf_files[0]  # Use first GGUF file found
+            else:
+                print(f"No GGUF files found in {args.model}")
+                weight_path = None
+        else:
+            weight_path = args.model
+
+        if weight_path:
+            load_pytorch_weights_from_tinygrad(model, weight_path)
 
     # Run benchmark
     if args.benchmark:

@@ -16,9 +16,12 @@ last_seen_toks = []
 
 def encode_role(role: str, tokenizer):
     """Encode a role header with special tokens"""
-    return (
-        [tokenizer.special_tokens["<|start_header_id|>"], *tokenizer.encode(role), tokenizer.special_tokens["<|end_header_id|>"], *tokenizer.encode("\n\n")]
-    )
+    return [
+        tokenizer.special_tokens["<|start_header_id|>"],
+        *tokenizer.encode(role),
+        tokenizer.special_tokens["<|end_header_id|>"],
+        *tokenizer.encode("\n\n"),
+    ]
 
 
 def encode_message(role: str, content: str, tokenizer):

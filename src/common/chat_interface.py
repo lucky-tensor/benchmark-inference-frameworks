@@ -174,9 +174,12 @@ class LLaMA3ChatInterface(ChatInterface):
 
     def encode_role(self, role: str) -> list[int]:
         """Encode a role header with LLaMA 3 special tokens"""
-        return (
-            [self.tokenizer.special_tokens["<|start_header_id|>"], *self.tokenizer.encode(role), self.tokenizer.special_tokens["<|end_header_id|>"], *self.tokenizer.encode("\n\n")]
-        )
+        return [
+            self.tokenizer.special_tokens["<|start_header_id|>"],
+            *self.tokenizer.encode(role),
+            self.tokenizer.special_tokens["<|end_header_id|>"],
+            *self.tokenizer.encode("\n\n"),
+        ]
 
     def encode_message(self, message: ChatMessage) -> list[int]:
         """Encode a single message with LLaMA 3 format"""

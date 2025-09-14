@@ -162,18 +162,14 @@ class VerboseLogger:
             print(f"Quantization: {metrics.quantization}")
 
         print("\nTIMING BREAKDOWN:")
-        cached_text = '(cached)' if metrics.model_was_cached else ''
-        print(
-            f"  Model Loading:     {metrics.model_load_duration * 1000:8.2f}ms {cached_text}"
-        )
+        cached_text = "(cached)" if metrics.model_was_cached else ""
+        print(f"  Model Loading:     {metrics.model_load_duration * 1000:8.2f}ms {cached_text}")
         print(
             f"  Prompt Processing: {metrics.prompt_processing_duration * 1000:8.2f}ms ({metrics.prompt_length} tokens)"
         )
         print(f"  Time to First Token: {metrics.time_to_first_token * 1000:6.2f}ms")
         token_gen_time = (metrics.last_token_time - metrics.first_token_time) * 1000
-        print(
-            f"  Token Generation:  {token_gen_time:8.2f}ms ({metrics.total_tokens} tokens)"
-        )
+        print(f"  Token Generation:  {token_gen_time:8.2f}ms ({metrics.total_tokens} tokens)")
 
         print("\nPERFORMANCE METRICS:")
         print(f"  Tokens per Second: {metrics.tokens_per_second:8.2f} tok/s")
@@ -380,10 +376,8 @@ def run_gpt2(model_name: str, **kwargs) -> None:
 
     print("=" * 80)
     print("✅ MODEL LOADING PHASE COMPLETED")
-    cache_status = 'from cache' if current_metrics.model_was_cached else 'from disk'
-    print(
-        f"⏱️  Duration: {current_metrics.model_load_duration:.3f}s ({cache_status})"
-    )
+    cache_status = "from cache" if current_metrics.model_was_cached else "from disk"
+    print(f"⏱️  Duration: {current_metrics.model_load_duration:.3f}s ({cache_status})")
     print("=" * 80)
 
     # ========== JIT COMPILATION PHASE ==========
@@ -495,10 +489,8 @@ def run_gpt2(model_name: str, **kwargs) -> None:
         }
 
     cache_before = get_cache_contents(cache_dir)
-    cache_size_mb = cache_before['total_size'] / (1024 * 1024)
-    print(
-        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_size_mb:.1f} MB total"
-    )
+    cache_size_mb = cache_before["total_size"] / (1024 * 1024)
+    print(f"📊 Cache state before JIT: {cache_before['files']} files, {cache_size_mb:.1f} MB total")
 
     # Display cache contents summary
     if cache_before.get("exists", False) and cache_before.get("db_summary", {}).get("total_entries", 0) > 0:
@@ -530,10 +522,8 @@ def run_gpt2(model_name: str, **kwargs) -> None:
                 combined_state = "".join(cache_state_data)
                 cache_hash = hashlib.sha256(combined_state.encode()).hexdigest()[:16]
                 print(f"🔒 Cache state hash: {cache_hash}")
-                kernel_types_count = len(summary.get('kernel_types', {}))
-                print(
-                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {kernel_types_count} types"
-                )
+                kernel_types_count = len(summary.get("kernel_types", {}))
+                print(f"📊 Cache fingerprint: {summary['total_entries']} kernels, {kernel_types_count} types")
     else:
         print("🆕 No existing cache found - first run will compile all kernels")
 
@@ -542,9 +532,12 @@ def run_gpt2(model_name: str, **kwargs) -> None:
 
     # Helper functions for encoding
     def encode_role(role: str):
-        return (
-            [tokenizer.special_tokens["<|start_header_id|>"], *tokenizer.encode(role), tokenizer.special_tokens["<|end_header_id|>"], *tokenizer.encode("\n\n")]
-        )
+        return [
+            tokenizer.special_tokens["<|start_header_id|>"],
+            *tokenizer.encode(role),
+            tokenizer.special_tokens["<|end_header_id|>"],
+            *tokenizer.encode("\n\n"),
+        ]
 
     def encode_message(role: str, content: str):
         return encode_role(role) + tokenizer.encode(content.strip()) + [tokenizer.special_tokens["<|eot_id|>"]]
@@ -561,7 +554,7 @@ def run_gpt2(model_name: str, **kwargs) -> None:
     current_metrics.gpu_memory_after = memory_tracker.get_current_memory_mb()
 
     # Add tinygrad cache information
-    cache_path = Path('~/.cache/tinygrad/cache.db').expanduser()
+    cache_path = Path("~/.cache/tinygrad/cache.db").expanduser()
     cache_size_mb = cache_path.stat().st_size / 1024 / 1024
     cache_info = f"~/.cache/tinygrad/cache.db ({cache_size_mb:.1f}MB)"
     logger.log_info(f"Tinygrad JIT cache: {cache_info}")
@@ -711,9 +704,8 @@ def run_gpt2(model_name: str, **kwargs) -> None:
 
 def run_gpt2(model_name: str, **kwargs) -> None:
     """Run GPT-2 model inference"""
-    from tinygrad import Tensor
-
     from gpt2 import GPT2, MODEL_PARAMS
+    from tinygrad import Tensor
 
     if model_name not in MODEL_PARAMS and not model_name.startswith("gpt2_gguf_"):
         print(f"Error: Unknown GPT-2 model '{model_name}'. Available: {list(MODEL_PARAMS.keys())}")
@@ -876,10 +868,8 @@ def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwar
         }
 
     cache_before = get_cache_contents(cache_dir)
-    cache_size_mb = cache_before['total_size'] / (1024 * 1024)
-    print(
-        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_size_mb:.1f} MB total"
-    )
+    cache_size_mb = cache_before["total_size"] / (1024 * 1024)
+    print(f"📊 Cache state before JIT: {cache_before['files']} files, {cache_size_mb:.1f} MB total")
 
     # Display cache contents summary
     if cache_before.get("exists", False) and cache_before.get("db_summary", {}).get("total_entries", 0) > 0:
@@ -911,10 +901,8 @@ def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwar
                 combined_state = "".join(cache_state_data)
                 cache_hash = hashlib.sha256(combined_state.encode()).hexdigest()[:16]
                 print(f"🔒 Cache state hash: {cache_hash}")
-                kernel_types_count = len(summary.get('kernel_types', {}))
-                print(
-                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {kernel_types_count} types"
-                )
+                kernel_types_count = len(summary.get("kernel_types", {}))
+                print(f"📊 Cache fingerprint: {summary['total_entries']} kernels, {kernel_types_count} types")
     else:
         print("🆕 No existing cache found - first run will compile all kernels")
 

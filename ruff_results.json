@@ -1,0 +1,2469 @@
+[
+  {
+    "cell": null,
+    "code": "SIM108",
+    "end_location": {
+      "column": 82,
+      "row": 110
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 106
+    },
+    "message": "Use ternary operator `resolved_path = gguf_files[0] if gguf_files else resolve_model_path(model_path, model_size, False)` instead of `if`-`else`-block",
+    "noqa_row": 106,
+    "url": "https://docs.astral.sh/ruff/rules/if-else-block-instead-of-if-exp"
+  },
+  {
+    "cell": null,
+    "code": "RET504",
+    "end_location": {
+      "column": 21,
+      "row": 127
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "return",
+          "end_location": {
+            "column": 16,
+            "row": 120
+          },
+          "location": {
+            "column": 9,
+            "row": 120
+          }
+        },
+        {
+          "content": "",
+          "end_location": {
+            "column": 1,
+            "row": 128
+          },
+          "location": {
+            "column": 1,
+            "row": 127
+          }
+        }
+      ],
+      "message": "Remove unnecessary assignment"
+    },
+    "location": {
+      "column": 16,
+      "row": 127
+    },
+    "message": "Unnecessary assignment to `model` before `return` statement",
+    "noqa_row": 127,
+    "url": "https://docs.astral.sh/ruff/rules/unnecessary-assign"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 118,
+      "row": 137
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.bos_id, *encode_message(\"user\", \"Hello.\", tokenizer), *encode_role(\"assistant\", tokenizer)]",
+          "end_location": {
+            "column": 118,
+            "row": 137
+          },
+          "location": {
+            "column": 16,
+            "row": 137
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 16,
+      "row": 137
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 137,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 83,
+      "row": 193
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 77,
+      "row": 193
+    },
+    "message": "Unused method argument: `kwargs`",
+    "noqa_row": 193,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "SIM102",
+    "end_location": {
+      "column": 36,
+      "row": 213
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "        if model_path and model_path.is_dir():\n            gguf_files = list(model_path.glob(\"*.gguf\"))\n            if gguf_files:\n                weight_path = gguf_files[0]\n                pytorch_backend.load_pytorch_weights_from_tinygrad(model, weight_path)",
+          "end_location": {
+            "column": 91,
+            "row": 217
+          },
+          "location": {
+            "column": 1,
+            "row": 212
+          }
+        }
+      ],
+      "message": "Combine `if` statements using `and`"
+    },
+    "location": {
+      "column": 9,
+      "row": 212
+    },
+    "message": "Use a single `if` statement instead of nested `if` statements",
+    "noqa_row": 212,
+    "url": "https://docs.astral.sh/ruff/rules/collapsible-if"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 34,
+      "row": 229
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 229
+    },
+    "message": "Unused method argument: `model`",
+    "noqa_row": 229,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 61,
+      "row": 238
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.special_tokens[\"<|start_header_id|>\"], *tokenizer.encode(\"user\"), tokenizer.special_tokens[\"<|end_header_id|>\"], *tokenizer.encode(\"\\n\\n\" + content.strip()), tokenizer.special_tokens[\"<|eot_id|>\"]]",
+          "end_location": {
+            "column": 61,
+            "row": 238
+          },
+          "location": {
+            "column": 21,
+            "row": 234
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 21,
+      "row": 234
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 234,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 41,
+      "row": 247
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.special_tokens[\"<|start_header_id|>\"], *tokenizer.encode(role), tokenizer.special_tokens[\"<|end_header_id|>\"], *tokenizer.encode(\"\\n\\n\")]",
+          "end_location": {
+            "column": 41,
+            "row": 247
+          },
+          "location": {
+            "column": 17,
+            "row": 244
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 17,
+      "row": 244
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 244,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 96,
+      "row": 250
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.bos_id, *encode_message(\"user\", \"Hello.\"), *encode_role(\"assistant\")]",
+          "end_location": {
+            "column": 96,
+            "row": 250
+          },
+          "location": {
+            "column": 16,
+            "row": 250
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 16,
+      "row": 250
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 250,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 28,
+      "row": 301
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 23,
+      "row": 301
+    },
+    "message": "Unused method argument: `model`",
+    "noqa_row": 301,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 44,
+      "row": 301
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 35,
+      "row": 301
+    },
+    "message": "Unused method argument: `tokenizer`",
+    "noqa_row": 301,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "F841",
+    "end_location": {
+      "column": 30,
+      "row": 363
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "",
+          "end_location": {
+            "column": 33,
+            "row": 363
+          },
+          "location": {
+            "column": 17,
+            "row": 363
+          }
+        }
+      ],
+      "message": "Remove assignment to unused variable `memory_before`"
+    },
+    "location": {
+      "column": 17,
+      "row": 363
+    },
+    "message": "Local variable `memory_before` is assigned to but never used",
+    "noqa_row": 363,
+    "url": "https://docs.astral.sh/ruff/rules/unused-variable"
+  },
+  {
+    "cell": null,
+    "code": "F841",
+    "end_location": {
+      "column": 23,
+      "row": 369
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "",
+          "end_location": {
+            "column": 26,
+            "row": 369
+          },
+          "location": {
+            "column": 13,
+            "row": 369
+          }
+        }
+      ],
+      "message": "Remove assignment to unused variable `next_token`"
+    },
+    "location": {
+      "column": 13,
+      "row": 369
+    },
+    "message": "Local variable `next_token` is assigned to but never used",
+    "noqa_row": 369,
+    "url": "https://docs.astral.sh/ruff/rules/unused-variable"
+  },
+  {
+    "cell": null,
+    "code": "TRY003",
+    "end_location": {
+      "column": 65,
+      "row": 406
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 15,
+      "row": 406
+    },
+    "message": "Avoid specifying long messages outside the exception class",
+    "noqa_row": 406,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-args"
+  },
+  {
+    "cell": null,
+    "code": "RET504",
+    "end_location": {
+      "column": 18,
+      "row": 437
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "return",
+          "end_location": {
+            "column": 13,
+            "row": 416
+          },
+          "location": {
+            "column": 5,
+            "row": 416
+          }
+        },
+        {
+          "content": "",
+          "end_location": {
+            "column": 1,
+            "row": 438
+          },
+          "location": {
+            "column": 1,
+            "row": 437
+          }
+        }
+      ],
+      "message": "Remove unnecessary assignment"
+    },
+    "location": {
+      "column": 12,
+      "row": 437
+    },
+    "message": "Unnecessary assignment to `result` before `return` statement",
+    "noqa_row": 437,
+    "url": "https://docs.astral.sh/ruff/rules/unnecessary-assign"
+  },
+  {
+    "cell": null,
+    "code": "TRY003",
+    "end_location": {
+      "column": 69,
+      "row": 519
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 15,
+      "row": 519
+    },
+    "message": "Avoid specifying long messages outside the exception class",
+    "noqa_row": 519,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-args"
+  },
+  {
+    "cell": null,
+    "code": "TRY003",
+    "end_location": {
+      "column": 10,
+      "row": 565
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 15,
+      "row": 562
+    },
+    "message": "Avoid specifying long messages outside the exception class",
+    "noqa_row": 562,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-args"
+  },
+  {
+    "cell": null,
+    "code": "SIM117",
+    "end_location": {
+      "column": 15,
+      "row": 28
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 23
+    },
+    "message": "Use a single `with` statement with multiple contexts instead of nested `with` statements",
+    "noqa_row": 23,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-with-statements"
+  },
+  {
+    "cell": null,
+    "code": "ARG005",
+    "end_location": {
+      "column": 38,
+      "row": 33
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 36,
+      "row": 33
+    },
+    "message": "Unused lambda argument: `et`",
+    "noqa_row": 33,
+    "url": "https://docs.astral.sh/ruff/rules/unused-lambda-argument"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 126,
+      "row": 41
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/benchmark.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 41
+    },
+    "message": "Line too long (125 > 120)",
+    "noqa_row": 41,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 181,
+      "row": 178
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/chat_interface.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 178
+    },
+    "message": "Line too long (180 > 120)",
+    "noqa_row": 178,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "TRY003",
+    "end_location": {
+      "column": 62,
+      "row": 301
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/chat_interface.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 301
+    },
+    "message": "Avoid specifying long messages outside the exception class",
+    "noqa_row": 301,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-args"
+  },
+  {
+    "cell": null,
+    "code": "SIM102",
+    "end_location": {
+      "column": 76,
+      "row": 368
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/chat_interface.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 366
+    },
+    "message": "Use a single `if` statement instead of nested `if` statements",
+    "noqa_row": 366,
+    "url": "https://docs.astral.sh/ruff/rules/collapsible-if"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 157,
+      "row": 20
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/generation.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 20
+    },
+    "message": "Line too long (156 > 120)",
+    "noqa_row": 20,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "B007",
+    "end_location": {
+      "column": 14,
+      "row": 37
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/common/generation.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 37
+    },
+    "message": "Loop control variable `i` not used within loop body",
+    "noqa_row": 37,
+    "url": "https://docs.astral.sh/ruff/rules/unused-loop-control-variable"
+  },
+  {
+    "cell": null,
+    "code": "PTH120",
+    "end_location": {
+      "column": 32,
+      "row": 8
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 8
+    },
+    "message": "`os.path.dirname()` should be replaced by `Path.parent`",
+    "noqa_row": 8,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-dirname"
+  },
+  {
+    "cell": null,
+    "code": "PTH100",
+    "end_location": {
+      "column": 48,
+      "row": 8
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 33,
+      "row": 8
+    },
+    "message": "`os.path.abspath()` should be replaced by `Path.resolve()`",
+    "noqa_row": 8,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-abspath"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 124,
+      "row": 158
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 158
+    },
+    "message": "Line too long (123 > 120)",
+    "noqa_row": 158,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 123,
+      "row": 159
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 159
+    },
+    "message": "Line too long (122 > 120)",
+    "noqa_row": 159,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "PTH111",
+    "end_location": {
+      "column": 39,
+      "row": 170
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 170
+    },
+    "message": "`os.path.expanduser()` should be replaced by `Path.expanduser()`",
+    "noqa_row": 170,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-expanduser"
+  },
+  {
+    "cell": null,
+    "code": "PTH103",
+    "end_location": {
+      "column": 20,
+      "row": 171
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 171
+    },
+    "message": "`os.makedirs()` should be replaced by `Path.mkdir(parents=True)`",
+    "noqa_row": 171,
+    "url": "https://docs.astral.sh/ruff/rules/os-makedirs"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 34,
+      "row": 175
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 22,
+      "row": 175
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 175,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 22,
+      "row": 190
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 190
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 190,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "PTH111",
+    "end_location": {
+      "column": 39,
+      "row": 198
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 198
+    },
+    "message": "`os.path.expanduser()` should be replaced by `Path.expanduser()`",
+    "noqa_row": 198,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-expanduser"
+  },
+  {
+    "cell": null,
+    "code": "PTH103",
+    "end_location": {
+      "column": 20,
+      "row": 199
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 199
+    },
+    "message": "`os.makedirs()` should be replaced by `Path.mkdir(parents=True)`",
+    "noqa_row": 199,
+    "url": "https://docs.astral.sh/ruff/rules/os-makedirs"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 30,
+      "row": 202
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 18,
+      "row": 202
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 202,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH116",
+    "end_location": {
+      "column": 43,
+      "row": 204
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 36,
+      "row": 204
+    },
+    "message": "`os.stat()` should be replaced by `Path.stat()`, `Path.owner()`, or `Path.group()`",
+    "noqa_row": 204,
+    "url": "https://docs.astral.sh/ruff/rules/os-stat"
+  },
+  {
+    "cell": null,
+    "code": "ARG005",
+    "end_location": {
+      "column": 34,
+      "row": 265
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/gpt/gpt2.py",
+    "fix": null,
+    "location": {
+      "column": 32,
+      "row": 265
+    },
+    "message": "Unused lambda argument: `et`",
+    "noqa_row": 265,
+    "url": "https://docs.astral.sh/ruff/rules/unused-lambda-argument"
+  },
+  {
+    "cell": null,
+    "code": "TRY002",
+    "end_location": {
+      "column": 81,
+      "row": 57
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/bench_log.py",
+    "fix": null,
+    "location": {
+      "column": 19,
+      "row": 57
+    },
+    "message": "Create your own exception",
+    "noqa_row": 57,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-class"
+  },
+  {
+    "cell": null,
+    "code": "TRY003",
+    "end_location": {
+      "column": 81,
+      "row": 57
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/bench_log.py",
+    "fix": null,
+    "location": {
+      "column": 19,
+      "row": 57
+    },
+    "message": "Avoid specifying long messages outside the exception class",
+    "noqa_row": 57,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-args"
+  },
+  {
+    "cell": null,
+    "code": "B007",
+    "end_location": {
+      "column": 31,
+      "row": 90
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/bench_log.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 90
+    },
+    "message": "Loop control variable `event_type` not used within loop body",
+    "noqa_row": 90,
+    "url": "https://docs.astral.sh/ruff/rules/unused-loop-control-variable"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 133,
+      "row": 24
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 24
+    },
+    "message": "Line too long (132 > 120)",
+    "noqa_row": 24,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 17,
+      "row": 35
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 35
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 35,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 134,
+      "row": 42
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 42
+    },
+    "message": "Line too long (133 > 120)",
+    "noqa_row": 42,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 36,
+      "row": 57
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 35,
+      "row": 57
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 57,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 133,
+      "row": 77
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 77
+    },
+    "message": "Line too long (132 > 120)",
+    "noqa_row": 77,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "FIX002",
+    "end_location": {
+      "column": 17,
+      "row": 79
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 79
+    },
+    "message": "Line contains TODO, consider resolving the issue",
+    "noqa_row": 79,
+    "url": "https://docs.astral.sh/ruff/rules/line-contains-todo"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 126,
+      "row": 110
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 110
+    },
+    "message": "Line too long (125 > 120)",
+    "noqa_row": 110,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 18,
+      "row": 128
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 128
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 128,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 155,
+      "row": 144
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 144
+    },
+    "message": "Line too long (154 > 120)",
+    "noqa_row": 144,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 152,
+      "row": 147
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 147
+    },
+    "message": "Line too long (151 > 120)",
+    "noqa_row": 147,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 143,
+      "row": 173
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 173
+    },
+    "message": "Line too long (142 > 120)",
+    "noqa_row": 173,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 143,
+      "row": 174
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 174
+    },
+    "message": "Line too long (142 > 120)",
+    "noqa_row": 174,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 124,
+      "row": 175
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 175
+    },
+    "message": "Line too long (123 > 120)",
+    "noqa_row": 175,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 127,
+      "row": 179
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 179
+    },
+    "message": "Line too long (126 > 120)",
+    "noqa_row": 179,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 127,
+      "row": 181
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 181
+    },
+    "message": "Line too long (126 > 120)",
+    "noqa_row": 181,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 135,
+      "row": 184
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 184
+    },
+    "message": "Line too long (134 > 120)",
+    "noqa_row": 184,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 146,
+      "row": 189
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 189
+    },
+    "message": "Line too long (145 > 120)",
+    "noqa_row": 189,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 30,
+      "row": 190
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 190
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 190,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 32,
+      "row": 192
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 31,
+      "row": 192
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 192,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 143,
+      "row": 196
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 196
+    },
+    "message": "Line too long (142 > 120)",
+    "noqa_row": 196,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "FIX002",
+    "end_location": {
+      "column": 11,
+      "row": 197
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 197
+    },
+    "message": "Line contains TODO, consider resolving the issue",
+    "noqa_row": 197,
+    "url": "https://docs.astral.sh/ruff/rules/line-contains-todo"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 145,
+      "row": 199
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 199
+    },
+    "message": "Line too long (144 > 120)",
+    "noqa_row": 199,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "FIX002",
+    "end_location": {
+      "column": 7,
+      "row": 204
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 3,
+      "row": 204
+    },
+    "message": "Line contains TODO, consider resolving the issue",
+    "noqa_row": 204,
+    "url": "https://docs.astral.sh/ruff/rules/line-contains-todo"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 132,
+      "row": 205
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 205
+    },
+    "message": "Line too long (131 > 120)",
+    "noqa_row": 205,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 148,
+      "row": 206
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 206
+    },
+    "message": "Line too long (147 > 120)",
+    "noqa_row": 206,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 138,
+      "row": 208
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 208
+    },
+    "message": "Line too long (137 > 120)",
+    "noqa_row": 208,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 93,
+      "row": 212
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 92,
+      "row": 212
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 212,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 120,
+      "row": 213
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 119,
+      "row": 213
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 213,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 141,
+      "row": 213
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 213
+    },
+    "message": "Line too long (140 > 120)",
+    "noqa_row": 213,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 147,
+      "row": 214
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 214
+    },
+    "message": "Line too long (146 > 120)",
+    "noqa_row": 214,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 126,
+      "row": 214
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 125,
+      "row": 214
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 214,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 122,
+      "row": 215
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 215
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 215,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 143,
+      "row": 215
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 215
+    },
+    "message": "Line too long (142 > 120)",
+    "noqa_row": 215,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 96,
+      "row": 216
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 95,
+      "row": 216
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 216,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 172,
+      "row": 217
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 217
+    },
+    "message": "Line too long (171 > 120)",
+    "noqa_row": 217,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 151,
+      "row": 217
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 150,
+      "row": 217
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 217,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 89,
+      "row": 218
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 88,
+      "row": 218
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 218,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 28,
+      "row": 225
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 27,
+      "row": 225
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 225,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 62,
+      "row": 228
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 61,
+      "row": 228
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 228,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 64,
+      "row": 229
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 63,
+      "row": 229
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 229,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 30,
+      "row": 236
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 236
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 236,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 78,
+      "row": 242
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 77,
+      "row": 242
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 242,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 102,
+      "row": 243
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 243
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 243,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 123,
+      "row": 243
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 243
+    },
+    "message": "Line too long (122 > 120)",
+    "noqa_row": 243,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 78,
+      "row": 244
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 77,
+      "row": 244
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 244,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 71,
+      "row": 245
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 70,
+      "row": 245
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 245,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 158,
+      "row": 246
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 246
+    },
+    "message": "Line too long (157 > 120)",
+    "noqa_row": 246,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 137,
+      "row": 246
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 136,
+      "row": 246
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 246,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "FIX002",
+    "end_location": {
+      "column": 9,
+      "row": 255
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/llama.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 255
+    },
+    "message": "Line contains TODO, consider resolving the issue",
+    "noqa_row": 255,
+    "url": "https://docs.astral.sh/ruff/rules/line-contains-todo"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 162,
+      "row": 27
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/models/transformer.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 27
+    },
+    "message": "Line too long (161 > 120)",
+    "noqa_row": 27,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "NPY002",
+    "end_location": {
+      "column": 37,
+      "row": 41
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/extra/training.py",
+    "fix": null,
+    "location": {
+      "column": 20,
+      "row": 41
+    },
+    "message": "Replace legacy `np.random.randint` call with `np.random.Generator`",
+    "noqa_row": 41,
+    "url": "https://docs.astral.sh/ruff/rules/numpy-legacy-random"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 36,
+      "row": 272
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 30,
+      "row": 272
+    },
+    "message": "Undefined name `Device`",
+    "noqa_row": 272,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 28,
+      "row": 352
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 22,
+      "row": 352
+    },
+    "message": "Undefined name `Device`",
+    "noqa_row": 352,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 24,
+      "row": 354
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 18,
+      "row": 354
+    },
+    "message": "Undefined name `Device`",
+    "noqa_row": 354,
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 161,
+      "row": 546
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 546
+    },
+    "message": "Line too long (160 > 120)",
+    "noqa_row": 546,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "RUF001",
+    "end_location": {
+      "column": 21,
+      "row": 620
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 20,
+      "row": 620
+    },
+    "message": "String contains ambiguous `ℹ` (INFORMATION SOURCE). Did you mean `i` (LATIN SMALL LETTER I)?",
+    "noqa_row": 620,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string"
+  },
+  {
+    "cell": null,
+    "code": "F811",
+    "end_location": {
+      "column": 13,
+      "row": 712
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 712
+    },
+    "message": "Redefinition of unused `run_gpt2` from line 260",
+    "noqa_row": 712,
+    "url": "https://docs.astral.sh/ruff/rules/redefined-while-unused"
+  },
+  {
+    "cell": null,
+    "code": "RUF059",
+    "end_location": {
+      "column": 46,
+      "row": 1089
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/inference.py",
+    "fix": null,
+    "location": {
+      "column": 33,
+      "row": 1089
+    },
+    "message": "Unpacked variable `expected_role` is never used",
+    "noqa_row": 1089,
+    "url": "https://docs.astral.sh/ruff/rules/unused-unpacked-variable"
+  },
+  {
+    "cell": null,
+    "code": "SIM117",
+    "end_location": {
+      "column": 23,
+      "row": 126
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/llama3.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 120
+    },
+    "message": "Use a single `with` statement with multiple contexts instead of nested `with` statements",
+    "noqa_row": 120,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-with-statements"
+  },
+  {
+    "cell": null,
+    "code": "ARG005",
+    "end_location": {
+      "column": 42,
+      "row": 131
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/llama3.py",
+    "fix": null,
+    "location": {
+      "column": 40,
+      "row": 131
+    },
+    "message": "Unused lambda argument: `et`",
+    "noqa_row": 131,
+    "url": "https://docs.astral.sh/ruff/rules/unused-lambda-argument"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 128,
+      "row": 139
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/llama3.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 139
+    },
+    "message": "Line too long (127 > 120)",
+    "noqa_row": 139,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "PTH123",
+    "end_location": {
+      "column": 18,
+      "row": 86
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 14,
+      "row": 86
+    },
+    "message": "`open()` should be replaced by `Path.open()`",
+    "noqa_row": 86,
+    "url": "https://docs.astral.sh/ruff/rules/builtin-open"
+  },
+  {
+    "cell": null,
+    "code": "PTH116",
+    "end_location": {
+      "column": 43,
+      "row": 91
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 36,
+      "row": 91
+    },
+    "message": "`os.stat()` should be replaced by `Path.stat()`, `Path.owner()`, or `Path.group()`",
+    "noqa_row": 91,
+    "url": "https://docs.astral.sh/ruff/rules/os-stat"
+  },
+  {
+    "cell": null,
+    "code": "PTH111",
+    "end_location": {
+      "column": 39,
+      "row": 213
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 213
+    },
+    "message": "`os.path.expanduser()` should be replaced by `Path.expanduser()`",
+    "noqa_row": 213,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-expanduser"
+  },
+  {
+    "cell": null,
+    "code": "PTH103",
+    "end_location": {
+      "column": 20,
+      "row": 214
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 214
+    },
+    "message": "`os.makedirs()` should be replaced by `Path.mkdir(parents=True)`",
+    "noqa_row": 214,
+    "url": "https://docs.astral.sh/ruff/rules/os-makedirs"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 25,
+      "row": 217
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 217
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 217,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 25,
+      "row": 221
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 221
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 221,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH111",
+    "end_location": {
+      "column": 39,
+      "row": 224
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 224
+    },
+    "message": "`os.path.expanduser()` should be replaced by `Path.expanduser()`",
+    "noqa_row": 224,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-expanduser"
+  },
+  {
+    "cell": null,
+    "code": "PTH103",
+    "end_location": {
+      "column": 20,
+      "row": 225
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 225
+    },
+    "message": "`os.makedirs()` should be replaced by `Path.mkdir(parents=True)`",
+    "noqa_row": 225,
+    "url": "https://docs.astral.sh/ruff/rules/os-makedirs"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 25,
+      "row": 228
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 228
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 228,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 29,
+      "row": 233
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 233
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 233,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 25,
+      "row": 237
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 237
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 237,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH111",
+    "end_location": {
+      "column": 39,
+      "row": 240
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 240
+    },
+    "message": "`os.path.expanduser()` should be replaced by `Path.expanduser()`",
+    "noqa_row": 240,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-expanduser"
+  },
+  {
+    "cell": null,
+    "code": "PTH103",
+    "end_location": {
+      "column": 20,
+      "row": 241
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 241
+    },
+    "message": "`os.makedirs()` should be replaced by `Path.mkdir(parents=True)`",
+    "noqa_row": 241,
+    "url": "https://docs.astral.sh/ruff/rules/os-makedirs"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 25,
+      "row": 244
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 244
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 244,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 25,
+      "row": 248
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 248
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 248,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "PTH118",
+    "end_location": {
+      "column": 29,
+      "row": 254
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 254
+    },
+    "message": "`os.path.join()` should be replaced by `Path` with `/` operator",
+    "noqa_row": 254,
+    "url": "https://docs.astral.sh/ruff/rules/os-path-join"
+  },
+  {
+    "cell": null,
+    "code": "TRY003",
+    "end_location": {
+      "column": 56,
+      "row": 257
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/llama/model_config.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 257
+    },
+    "message": "Avoid specifying long messages outside the exception class",
+    "noqa_row": 257,
+    "url": "https://docs.astral.sh/ruff/rules/raise-vanilla-args"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 135,
+      "row": 43
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": null,
+    "location": {
+      "column": 121,
+      "row": 43
+    },
+    "message": "Line too long (134 > 120)",
+    "noqa_row": 43,
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "RET504",
+    "end_location": {
+      "column": 19,
+      "row": 200
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "return",
+          "end_location": {
+            "column": 14,
+            "row": 199
+          },
+          "location": {
+            "column": 9,
+            "row": 199
+          }
+        },
+        {
+          "content": "",
+          "end_location": {
+            "column": 1,
+            "row": 201
+          },
+          "location": {
+            "column": 1,
+            "row": 200
+          }
+        }
+      ],
+      "message": "Remove unnecessary assignment"
+    },
+    "location": {
+      "column": 16,
+      "row": 200
+    },
+    "message": "Unnecessary assignment to `out` before `return` statement",
+    "noqa_row": 200,
+    "url": "https://docs.astral.sh/ruff/rules/unnecessary-assign"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 14,
+      "row": 250
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 250
+    },
+    "message": "Unused method argument: `top_k`",
+    "noqa_row": 250,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 14,
+      "row": 251
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 251
+    },
+    "message": "Unused method argument: `top_p`",
+    "noqa_row": 251,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 16,
+      "row": 252
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 252
+    },
+    "message": "Unused method argument: `alpha_f`",
+    "noqa_row": 252,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "ARG002",
+    "end_location": {
+      "column": 16,
+      "row": 253
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 253
+    },
+    "message": "Unused method argument: `alpha_p`",
+    "noqa_row": 253,
+    "url": "https://docs.astral.sh/ruff/rules/unused-method-argument"
+  },
+  {
+    "cell": null,
+    "code": "RUF059",
+    "end_location": {
+      "column": 12,
+      "row": 255
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "_bsz",
+          "end_location": {
+            "column": 12,
+            "row": 255
+          },
+          "location": {
+            "column": 9,
+            "row": 255
+          }
+        }
+      ],
+      "message": "Prefix it with an underscore or any other dummy variable pattern"
+    },
+    "location": {
+      "column": 9,
+      "row": 255
+    },
+    "message": "Unpacked variable `bsz` is never used",
+    "noqa_row": 255,
+    "url": "https://docs.astral.sh/ruff/rules/unused-unpacked-variable"
+  },
+  {
+    "cell": null,
+    "code": "ARG001",
+    "end_location": {
+      "column": 81,
+      "row": 413
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": null,
+    "location": {
+      "column": 77,
+      "row": 413
+    },
+    "message": "Unused function argument: `args`",
+    "noqa_row": 413,
+    "url": "https://docs.astral.sh/ruff/rules/unused-function-argument"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 57,
+      "row": 427
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.special_tokens[\"<|start_header_id|>\"], *tokenizer.encode(\"user\"), tokenizer.special_tokens[\"<|end_header_id|>\"], *tokenizer.encode(\"\\n\\n\" + content.strip()), tokenizer.special_tokens[\"<|eot_id|>\"]]",
+          "end_location": {
+            "column": 57,
+            "row": 427
+          },
+          "location": {
+            "column": 17,
+            "row": 423
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 17,
+      "row": 423
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 423,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 37,
+      "row": 436
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.special_tokens[\"<|start_header_id|>\"], *tokenizer.encode(role), tokenizer.special_tokens[\"<|end_header_id|>\"], *tokenizer.encode(\"\\n\\n\")]",
+          "end_location": {
+            "column": 37,
+            "row": 436
+          },
+          "location": {
+            "column": 13,
+            "row": 433
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 13,
+      "row": 433
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 433,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  },
+  {
+    "cell": null,
+    "code": "RUF005",
+    "end_location": {
+      "column": 92,
+      "row": 439
+    },
+    "filename": "/home/jeef/tinygrad-demo/src/pytorch-backend.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "[tokenizer.bos_id, *encode_message(\"user\", \"Hello.\"), *encode_role(\"assistant\")]",
+          "end_location": {
+            "column": 92,
+            "row": 439
+          },
+          "location": {
+            "column": 12,
+            "row": 439
+          }
+        }
+      ],
+      "message": "Replace with iterable unpacking"
+    },
+    "location": {
+      "column": 12,
+      "row": 439
+    },
+    "message": "Consider iterable unpacking instead of concatenation",
+    "noqa_row": 439,
+    "url": "https://docs.astral.sh/ruff/rules/collection-literal-concatenation"
+  }
+]
