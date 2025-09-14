@@ -5,7 +5,7 @@ Benchmarking functionality for model performance testing.
 from tinygrad import Device, GlobalCounters, Tensor
 from tinygrad.helpers import DEBUG, Profiling, Timing, colored
 
-from ..llama.extra.bench_log import BenchEvent, WallTimeEvent
+from llama.extra.bench_log import BenchEvent, WallTimeEvent
 from .generation import TEMPERATURE, encode_message, encode_role, prefill
 
 
@@ -20,35 +20,37 @@ def run_benchmark(model, tokenizer, args, param_bytes, device):
     for _ in range(20):
         GlobalCounters.reset()
         st = GlobalCounters.time_sum_s
-        with Profiling(enabled=args.profile):
-            with Timing(
+        with (
+            Profiling(enabled=args.profile),
+            Timing(
                 "total ",
                 on_exit=lambda x: f", {1e9 / x:.2f} tok/s, {GlobalCounters.global_mem / x:.2f} GB/s, "
                 f"param {param_bytes / x:.2f} GB/s",
+            ),
+            WallTimeEvent(BenchEvent.STEP),
+        ):
+            with Timing(
+                "enqueue in ",
+                on_exit=(
+                    lambda _et, start_time=st: (
+                        f", {(GlobalCounters.time_sum_s - start_time) * 1e3:.2f} ms on {Device.DEFAULT}"
+                        if DEBUG >= 2
+                        else ""
+                    )
+                    + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, "
+                    f"{GlobalCounters.global_mem * 1e-9:.2f} GB"
+                    + (
+                        f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s, "
+                        f"param {param_bytes * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s"
+                        if DEBUG >= 2
+                        else ""
+                    )
+                )
+                if DEBUG
+                else None,
             ):
-                with WallTimeEvent(BenchEvent.STEP):
-                    with Timing(
-                        "enqueue in ",
-                        on_exit=(
-                            lambda et, start_time=st: (
-                                f", {(GlobalCounters.time_sum_s - start_time) * 1e3:.2f} ms on {Device.DEFAULT}"
-                                if DEBUG >= 2
-                                else ""
-                            )
-                            + f", {GlobalCounters.global_ops * 1e-9:.2f} GOPS, "
-                            f"{GlobalCounters.global_mem * 1e-9:.2f} GB"
-                            + (
-                                f", {GlobalCounters.global_mem * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s, "
-                                f"param {param_bytes * 1e-9 / (GlobalCounters.time_sum_s - start_time):.2f} GB/s"
-                                if DEBUG >= 2
-                                else ""
-                            )
-                        )
-                        if DEBUG
-                        else None,
-                    ):
-                        tok = model(Tensor([[last_tok]], device=device), start_pos, TEMPERATURE, 0, 0.0, 0.0, 0.0)
-                    tok = tok.item()
+                tok = model(Tensor([[last_tok]], device=device), start_pos, TEMPERATURE, 0, 0.0, 0.0, 0.0)
+            tok = tok.item()
         start_pos += 1
         last_tok = tok
         generated += tokenizer.decode([tok])
