@@ -189,7 +189,7 @@ class PyTorchBackend(FrameworkBackend):
 
         import torch
 
-        spec = importlib.util.spec_from_file_location("pytorch_backend", "pytorch-backend.py")
+        spec = importlib.util.spec_from_file_location("pytorch_backend", "src/pytorch-backend.py")
         pytorch_backend = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(pytorch_backend)
 
@@ -214,7 +214,7 @@ class PyTorchBackend(FrameworkBackend):
     def load_tokenizer(self, tokenizer_path: Path) -> Any:
         import importlib.util
 
-        spec = importlib.util.spec_from_file_location("pytorch_backend", "pytorch-backend.py")
+        spec = importlib.util.spec_from_file_location("pytorch_backend", "src/pytorch-backend.py")
         pytorch_backend = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(pytorch_backend)
 

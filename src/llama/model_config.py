@@ -106,7 +106,7 @@ def build_transformer(
 ):
     from extra.models.llama import Transformer
 
-    from ..common.quantization import Int8Embedding, Int8Linear, NF4Linear
+    from common.quantization import Int8Embedding, Int8Linear, NF4Linear
 
     if quantize == "int8":
         linear, embedding, quantize_embeds = Int8Linear, Int8Embedding, True

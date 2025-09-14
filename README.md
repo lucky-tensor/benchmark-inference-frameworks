@@ -107,10 +107,13 @@ uv run python benchmark.py --framework tinygrad --model-type gpt --model-path ~/
 The unified benchmark system provides comprehensive metrics:
 
 ### Performance Metrics
-- **Average latency**: Mean time per token generation
-- **First token latency**: Time to generate first token (includes prefill)
+- **Cold start latency**: Time for first inference (includes JIT compilation and warmup)
+- **Cold start throughput**: Tokens per second during initial inference
+- **Average latency**: Mean time per token generation (steady-state)
+- **First token latency**: Time to generate first token in steady-state
 - **Peak throughput**: Maximum tokens per second achieved
 - **Average throughput**: Mean tokens per second across all iterations
+- **Warmup improvement**: Performance gain from cold start to steady-state
 
 ### Memory Metrics  
 - **Model memory**: Memory used by model weights
@@ -124,14 +127,20 @@ The unified benchmark system provides comprehensive metrics:
 ================================================================================
 Metric                           TinyGrad |         PyTorch
 -------------------------------------------------------------
-Avg Latency (ms)                    15.89 |           25.47
-Avg Throughput (tok/s)               62.9 |            39.3
+Cold Start (ms)                     50.92 |          281.02
+Cold Start (tok/s)                   19.6 |             3.6
+
+Avg Latency (ms)                    12.05 |           24.28
+Avg Throughput (tok/s)               83.0 |            41.2
+Steady-State (tok/s)                 83.0 |            41.2
 Peak Memory (GB)                     5.59 |            6.10
 
 🏁 Performance Comparison (TinyGrad vs PyTorch):
-  TinyGrad is 1.6x faster in throughput
-  TinyGrad has 1.6x lower latency
-  TinyGrad uses 1.1x less memory
+  ❄️  TinyGrad has 5.5x faster cold start
+  🔥 TinyGrad is 2.0x faster in steady-state throughput
+  ⚡ TinyGrad is 2.0x faster in average throughput
+  ⏱️  TinyGrad has 2.0x lower latency
+  💾 TinyGrad uses 1.1x less memory
 ```
 
 Results show TinyGrad consistently outperforming PyTorch across all metrics for LLaMA inference.
