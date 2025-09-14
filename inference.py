@@ -1,37 +1,38 @@
 #!/usr/bin/env python3
-import os
-import sys
 import argparse
-import time
 import json
+import os
 import sqlite3
-import hashlib
-from pathlib import Path
-from typing import Dict, Any, List, Tuple
+import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
-import threading
+from pathlib import Path
+from typing import Any
 
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Set model download directory and enable JIT
-os.environ['TINYGRAD_DOWNLOAD_CACHE'] = os.path.expanduser('~/models')
-os.environ['TINYGRAD_JIT'] = '1'
+# Note: Models are expected to be in ~/models/<model_name>/
+os.environ["TINYGRAD_JIT"] = "1"
 
 # Import GPU memory utilities
 from tinygrad.helpers import GlobalCounters
 
 # Import chat interface for interactive mode
 from chat_interface import (
-    ChatSession, ChatMessage, MessageRole, ResponseStats,
-    LLaMA3ChatInterface, GPT2ChatInterface, create_chat_interface,
-    stream_generate_tokens
+    ChatMessage,
+    ChatSession,
+    GPT2ChatInterface,
+    LLaMA3ChatInterface,
+    MessageRole,
 )
+
 
 @dataclass
 class InferenceMetrics:
     """Comprehensive inference metrics collection"""
+
     model_name: str
     timestamp: str
 
@@ -52,7 +53,7 @@ class InferenceMetrics:
     first_token_time: float = 0.0
     last_token_time: float = 0.0
     time_to_first_token: float = 0.0  # TTFT
-    time_per_token: float = 0.0       # TPT
+    time_per_token: float = 0.0  # TPT
     total_tokens: int = 0
     tokens_per_second: float = 0.0
 
@@ -66,36 +67,37 @@ class InferenceMetrics:
     shard_count: int = 1
     quantization: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary for logging"""
         return {
-            'model_name': self.model_name,
-            'timestamp': self.timestamp,
-            'model_loading': {
-                'duration_ms': round(self.model_load_duration * 1000, 2),
-                'was_cached': self.model_was_cached
+            "model_name": self.model_name,
+            "timestamp": self.timestamp,
+            "model_loading": {
+                "duration_ms": round(self.model_load_duration * 1000, 2),
+                "was_cached": self.model_was_cached,
             },
-            'prompt_processing': {
-                'prompt_length': self.prompt_length,
-                'duration_ms': round(self.prompt_processing_duration * 1000, 2)
+            "prompt_processing": {
+                "prompt_length": self.prompt_length,
+                "duration_ms": round(self.prompt_processing_duration * 1000, 2),
             },
-            'token_generation': {
-                'total_tokens': self.total_tokens,
-                'time_to_first_token_ms': round(self.time_to_first_token * 1000, 2),
-                'time_per_token_ms': round(self.time_per_token * 1000, 2),
-                'tokens_per_second': round(self.tokens_per_second, 2)
+            "token_generation": {
+                "total_tokens": self.total_tokens,
+                "time_to_first_token_ms": round(self.time_to_first_token * 1000, 2),
+                "time_per_token_ms": round(self.time_per_token * 1000, 2),
+                "tokens_per_second": round(self.tokens_per_second, 2),
             },
-            'memory': {
-                'before_mb': round(self.gpu_memory_before, 1),
-                'after_mb': round(self.gpu_memory_after, 1),
-                'peak_mb': round(self.gpu_memory_peak, 1)
+            "memory": {
+                "before_mb": round(self.gpu_memory_before, 1),
+                "after_mb": round(self.gpu_memory_after, 1),
+                "peak_mb": round(self.gpu_memory_peak, 1),
             },
-            'infrastructure': {
-                'device_info': self.device_info,
-                'shard_count': self.shard_count,
-                'quantization': self.quantization or 'none'
-            }
+            "infrastructure": {
+                "device_info": self.device_info,
+                "shard_count": self.shard_count,
+                "quantization": self.quantization or "none",
+            },
         }
+
 
 class VerboseLogger:
     """Verbose logging system for inference operations"""
@@ -146,9 +148,9 @@ class VerboseLogger:
         if not self.verbose:
             return
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("INFERENCE METRICS SUMMARY")
-        print("="*60)
+        print("=" * 60)
 
         # Model info
         print(f"Model: {metrics.model_name}")
@@ -160,14 +162,20 @@ class VerboseLogger:
             print(f"Quantization: {metrics.quantization}")
 
         print("\nTIMING BREAKDOWN:")
-        print(f"  Model Loading:     {metrics.model_load_duration*1000:8.2f}ms {'(cached)' if metrics.model_was_cached else ''}")
-        print(f"  Prompt Processing: {metrics.prompt_processing_duration*1000:8.2f}ms ({metrics.prompt_length} tokens)")
-        print(f"  Time to First Token: {metrics.time_to_first_token*1000:6.2f}ms")
-        print(f"  Token Generation:  {(metrics.last_token_time - metrics.first_token_time)*1000:8.2f}ms ({metrics.total_tokens} tokens)")
+        print(
+            f"  Model Loading:     {metrics.model_load_duration * 1000:8.2f}ms {'(cached)' if metrics.model_was_cached else ''}"
+        )
+        print(
+            f"  Prompt Processing: {metrics.prompt_processing_duration * 1000:8.2f}ms ({metrics.prompt_length} tokens)"
+        )
+        print(f"  Time to First Token: {metrics.time_to_first_token * 1000:6.2f}ms")
+        print(
+            f"  Token Generation:  {(metrics.last_token_time - metrics.first_token_time) * 1000:8.2f}ms ({metrics.total_tokens} tokens)"
+        )
 
         print("\nPERFORMANCE METRICS:")
         print(f"  Tokens per Second: {metrics.tokens_per_second:8.2f} tok/s")
-        print(f"  Time per Token:    {metrics.time_per_token*1000:8.2f}ms")
+        print(f"  Time per Token:    {metrics.time_per_token * 1000:8.2f}ms")
 
         print("\nMEMORY USAGE:")
         print(f"  Before Loading:    {metrics.gpu_memory_before:8.1f}MB")
@@ -176,14 +184,17 @@ class VerboseLogger:
 
         total_time = metrics.last_token_time - metrics.model_load_start
         print(f"\nTOTAL INFERENCE TIME: {total_time:.3f}s")
-        print("="*60)
+        print("=" * 60)
+
 
 # Global logger and metrics instances
 logger = VerboseLogger()
 current_metrics = None
 
+
 class ModelMemoryTracker:
     """Track model memory usage using tinygrad's GlobalCounters"""
+
     def __init__(self, cache_file="~/.tinygrad_mem_cache.json"):
         self.cache_file = Path(cache_file).expanduser()
         self.cache = self._load_cache()
@@ -191,7 +202,7 @@ class ModelMemoryTracker:
     def _load_cache(self):
         if self.cache_file.exists():
             try:
-                with open(self.cache_file, 'r') as f:
+                with open(self.cache_file) as f:
                     return json.load(f)
             except:
                 pass
@@ -199,7 +210,7 @@ class ModelMemoryTracker:
 
     def _save_cache(self):
         try:
-            with open(self.cache_file, 'w') as f:
+            with open(self.cache_file, "w") as f:
                 json.dump(self.cache, f, indent=2)
         except:
             pass
@@ -213,7 +224,7 @@ class ModelMemoryTracker:
         if model_name not in self.cache:
             return False
 
-        cached_mem = self.cache[model_name]['memory_mb']
+        cached_mem = self.cache[model_name]["memory_mb"]
         current_mem = self.get_current_memory_mb()
 
         # Check if current memory usage suggests model is loaded
@@ -221,21 +232,20 @@ class ModelMemoryTracker:
         is_loaded = memory_diff <= tolerance_mb and current_mem >= cached_mem * 0.8
 
         if is_loaded:
-            age_hours = (time.time() - self.cache[model_name]['timestamp']) / 3600
-            print(f"Model {model_name} appears to be loaded ({current_mem:.0f}MB, expected: {cached_mem:.0f}MB, age: {age_hours:.1f}h)")
+            age_hours = (time.time() - self.cache[model_name]["timestamp"]) / 3600
+            print(
+                f"Model {model_name} appears to be loaded ({current_mem:.0f}MB, expected: {cached_mem:.0f}MB, age: {age_hours:.1f}h)"
+            )
 
         return is_loaded
 
     def record_model_load(self, model_name, memory_before_mb, memory_after_mb):
         """Record model loading statistics"""
         delta_mb = memory_after_mb - memory_before_mb
-        self.cache[model_name] = {
-            'memory_mb': memory_after_mb,
-            'delta_mb': delta_mb,
-            'timestamp': time.time()
-        }
+        self.cache[model_name] = {"memory_mb": memory_after_mb, "delta_mb": delta_mb, "timestamp": time.time()}
         self._save_cache()
         print(f"Recorded {model_name}: {delta_mb:.0f}MB delta, total: {memory_after_mb:.0f}MB")
+
 
 # Global tracker instance
 memory_tracker = ModelMemoryTracker()
@@ -243,12 +253,10 @@ memory_tracker = ModelMemoryTracker()
 # Global model cache to keep models loaded in memory
 _model_cache = {}
 
-def run_llama3(model_name: str, **kwargs) -> None:
-    """Run LLaMA 3 model inference with comprehensive metrics and logging"""
-    from llama3 import MODEL_PARAMS, build_transformer, Tokenizer, prefill
-    from tinygrad import Tensor, Device
-    from pathlib import Path
-    import time
+
+def run_gpt2(model_name: str, **kwargs) -> None:
+    """Run GPT-2 model inference"""
+    from tinygrad import Tensor
 
     global current_metrics
 
@@ -256,9 +264,9 @@ def run_llama3(model_name: str, **kwargs) -> None:
     current_metrics = InferenceMetrics(
         model_name=model_name,
         timestamp=datetime.now().isoformat(),
-        shard_count=kwargs.get('shard', 1),
-        quantization=kwargs.get('quantize', ''),
-        device_info=f"CUDA ({Device.DEFAULT})"
+        shard_count=kwargs.get("shard", 1),
+        quantization=kwargs.get("quantize", ""),
+        device_info=f"CUDA ({Device.DEFAULT})",
     )
 
     logger.log_step("INITIALIZING INFERENCE", f"model={model_name}, shards={current_metrics.shard_count}")
@@ -266,12 +274,7 @@ def run_llama3(model_name: str, **kwargs) -> None:
     logger.log_info(f"Initial GPU memory: {current_metrics.gpu_memory_before:.1f}MB")
 
     # Map friendly names to actual model sizes
-    size_map = {
-        'llama3-1b': '1B',
-        'llama3-8b': '8B',
-        'llama3-70b': '70B',
-        'llama3-405b': '405B'
-    }
+    size_map = {"llama3-1b": "1B", "llama3-8b": "8B", "llama3-70b": "70B", "llama3-405b": "405B"}
 
     if model_name not in size_map:
         print(f"Error: Unknown LLaMA model '{model_name}'. Available: {list(size_map.keys())}")
@@ -303,26 +306,27 @@ def run_llama3(model_name: str, **kwargs) -> None:
         print(f"Tokenizer not found at {tokenizer_path}")
         sys.exit(1)
 
-    # Set temperature and other globals needed by llama3.py
-    import llama3
-    llama3.TEMPERATURE = kwargs['temperature']
-    llama3.TOP_K = 50
-    llama3.TOP_P = 0.95
-    llama3.ALPHA_F = 1.0
-    llama3.ALPHA_P = 0.0
+    # Set temperature and other globals needed by generation.py
+    import generation
 
-    if kwargs.get('seed') is not None:
-        Tensor.manual_seed(kwargs['seed'])
+    generation.TEMPERATURE = kwargs["temperature"]
+    generation.TOP_K = 50
+    generation.TOP_P = 0.95
+    generation.ALPHA_F = 1.0
+    generation.ALPHA_P = 0.0
+
+    if kwargs.get("seed") is not None:
+        Tensor.manual_seed(kwargs["seed"])
 
     # ========== MODEL LOADING PHASE ==========
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("🔄 MODEL LOADING PHASE STARTING")
-    print("="*80)
+    print("=" * 80)
 
     # Check if model is already cached in memory
     logger.log_step("MODEL LOADING", "Checking model cache")
-    shard_info = f"_shard{kwargs.get('shard', 1)}" if kwargs.get('shard', 1) > 1 else ""
-    quant_info = f"_q{kwargs.get('quantize')}" if kwargs.get('quantize') else ""
+    shard_info = f"_shard{kwargs.get('shard', 1)}" if kwargs.get("shard", 1) > 1 else ""
+    quant_info = f"_q{kwargs.get('quantize')}" if kwargs.get("quantize") else ""
     cache_key = f"{model_name}_{model_size}{shard_info}{quant_info}"
 
     current_metrics.model_load_start = time.time()
@@ -341,15 +345,19 @@ def run_llama3(model_name: str, **kwargs) -> None:
         logger.log_info(f"GPU memory before model load: {memory_before:.1f}MB")
 
         # Setup device for sharding
-        device = tuple(f"{Device.DEFAULT}:{i}" for i in range(kwargs.get('shard', 1))) if kwargs.get('shard', 1) > 1 else Device.DEFAULT
+        device = (
+            tuple(f"{Device.DEFAULT}:{i}" for i in range(kwargs.get("shard", 1)))
+            if kwargs.get("shard", 1) > 1
+            else Device.DEFAULT
+        )
         logger.log_info(f"Device configuration: {device}")
-
-        # Set the global device variable that prefill() expects
-        llama3.device = device[0] if isinstance(device, tuple) else device
 
         # Load model with sharding and quantization support
         logger.log_substep("Loading transformer model")
-        model = build_transformer(model_path, model_size=model_size, device=device, quantize=kwargs.get('quantize'))
+        from model_config import build_transformer
+        from tokenizer import Tokenizer
+
+        model = build_transformer(model_path, model_size=model_size, device=device, quantize=kwargs.get("quantize"))
 
         logger.log_substep("Loading tokenizer")
         tokenizer = Tokenizer(str(tokenizer_path))
@@ -367,16 +375,18 @@ def run_llama3(model_name: str, **kwargs) -> None:
     current_metrics.model_load_duration = current_metrics.model_load_end - current_metrics.model_load_start
     logger.log_timing("Model loading", current_metrics.model_load_duration)
 
-    print("="*80)
+    print("=" * 80)
     print("✅ MODEL LOADING PHASE COMPLETED")
-    print(f"⏱️  Duration: {current_metrics.model_load_duration:.3f}s ({'from cache' if current_metrics.model_was_cached else 'from disk'})")
-    print("="*80)
+    print(
+        f"⏱️  Duration: {current_metrics.model_load_duration:.3f}s ({'from cache' if current_metrics.model_was_cached else 'from disk'})"
+    )
+    print("=" * 80)
 
     # ========== JIT COMPILATION PHASE ==========
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("⚡ JIT COMPILATION PHASE STARTING")
     print("   (First model call will compile kernels - this may take some time)")
-    print("="*80)
+    print("=" * 80)
 
     # Show JIT cache location
     cache_dir = Path.home() / ".cache" / "tinygrad"
@@ -412,7 +422,7 @@ def run_llama3(model_name: str, **kwargs) -> None:
 
                 if tables:
                     # Assume the main table is 'cache' or similar - try common names
-                    table_candidates = ['cache', 'kernels', 'compiled_kernels']
+                    table_candidates = ["cache", "kernels", "compiled_kernels"]
                     main_table = None
 
                     for candidate in table_candidates:
@@ -439,27 +449,27 @@ def run_llama3(model_name: str, **kwargs) -> None:
 
                         # Analyze entries for patterns
                         for row in rows:
-                            entry = dict(zip(column_names, row))
+                            entry = dict(zip(column_names, row, strict=False))
 
                             # Try to identify kernel type from key/name patterns
                             kernel_type = "unknown"
                             key_text = ""
 
                             # Look for identifying info in various fields
-                            for field in ['key', 'name', 'kernel_name', 'code']:
-                                if field in entry and entry[field]:
+                            for field in ["key", "name", "kernel_name", "code"]:
+                                if entry.get(field):
                                     key_text += str(entry[field]).lower()
 
                             # Classify kernel types
-                            if 'matmul' in key_text or 'gemm' in key_text or 'dot' in key_text:
+                            if "matmul" in key_text or "gemm" in key_text or "dot" in key_text:
                                 kernel_type = "matmul"
-                            elif 'conv' in key_text:
+                            elif "conv" in key_text:
                                 kernel_type = "convolution"
-                            elif 'reduce' in key_text or 'sum' in key_text or 'max' in key_text:
+                            elif "reduce" in key_text or "sum" in key_text or "max" in key_text:
                                 kernel_type = "reduce"
-                            elif 'elementwise' in key_text or 'add' in key_text or 'mul' in key_text:
+                            elif "elementwise" in key_text or "add" in key_text or "mul" in key_text:
                                 kernel_type = "elementwise"
-                            elif 'reshape' in key_text or 'transpose' in key_text:
+                            elif "reshape" in key_text or "transpose" in key_text:
                                 kernel_type = "reshape"
 
                             db_summary["kernel_types"][kernel_type] = db_summary["kernel_types"].get(kernel_type, 0) + 1
@@ -477,31 +487,46 @@ def run_llama3(model_name: str, **kwargs) -> None:
             "files": len(cache_files),
             "total_size": total_size,
             "db_entries": db_entries,
-            "db_summary": db_summary
+            "db_summary": db_summary,
         }
 
     cache_before = get_cache_contents(cache_dir)
-    print(f"📊 Cache state before JIT: {cache_before['files']} files, {cache_before['total_size']/(1024*1024):.1f} MB total")
+    print(
+        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_before['total_size'] / (1024 * 1024):.1f} MB total"
+    )
 
     # Display cache contents summary
-    if cache_before.get('exists', False) and cache_before.get('db_summary', {}).get('total_entries', 0) > 0:
-        summary = cache_before['db_summary']
+    if cache_before.get("exists", False) and cache_before.get("db_summary", {}).get("total_entries", 0) > 0:
+        summary = cache_before["db_summary"]
         print(f"🗄️  Database contains {summary['total_entries']} cached kernels:")
-        for kernel_type, count in summary.get('kernel_types', {}).items():
+        for kernel_type, count in summary.get("kernel_types", {}).items():
             print(f"   • {kernel_type}: {count} kernels")
 
-        # Show sample entries
-        if cache_before.get('db_entries', []):
-            print("📝 Sample cache entries:")
-            for i, entry in enumerate(cache_before['db_entries'][:3]):
-                # Find the most informative field to display
-                key_info = ""
-                for field in ['key', 'name', 'kernel_name', 'hash']:
-                    if field in entry and entry[field]:
-                        key_info = f"{field}={str(entry[field])[:60]}..."
+        # Show cache state hash
+        if cache_before.get("db_entries", []):
+            # Create a hash of the cache state for reproducibility checking
+            cache_state_data = []
+            for entry in cache_before["db_entries"]:
+                # Use key fields to create a deterministic hash
+                entry_key = ""
+                for field in ["key", "name", "kernel_name", "hash"]:
+                    if entry.get(field):
+                        entry_key += str(entry[field])
                         break
-                if key_info:
-                    print(f"   {i+1}. {key_info}")
+                if entry_key:
+                    cache_state_data.append(entry_key)
+
+            if cache_state_data:
+                import hashlib
+
+                # Sort for deterministic hashing
+                cache_state_data.sort()
+                combined_state = "".join(cache_state_data)
+                cache_hash = hashlib.sha256(combined_state.encode()).hexdigest()[:16]
+                print(f"🔒 Cache state hash: {cache_hash}")
+                print(
+                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {len(summary.get('kernel_types', {}))} types"
+                )
     else:
         print("🆕 No existing cache found - first run will compile all kernels")
 
@@ -510,7 +535,12 @@ def run_llama3(model_name: str, **kwargs) -> None:
 
     # Helper functions for encoding
     def encode_role(role: str):
-        return [tokenizer.special_tokens["<|start_header_id|>"]] + tokenizer.encode(role) + [tokenizer.special_tokens["<|end_header_id|>"]] + tokenizer.encode("\n\n")
+        return (
+            [tokenizer.special_tokens["<|start_header_id|>"]]
+            + tokenizer.encode(role)
+            + [tokenizer.special_tokens["<|end_header_id|>"]]
+            + tokenizer.encode("\n\n")
+        )
 
     def encode_message(role: str, content: str):
         return encode_role(role) + tokenizer.encode(content.strip()) + [tokenizer.special_tokens["<|eot_id|>"]]
@@ -519,7 +549,7 @@ def run_llama3(model_name: str, **kwargs) -> None:
     logger.log_step("PROMPT PROCESSING", "Encoding user prompt")
     current_metrics.prompt_processing_start = time.time()
 
-    prompt_tokens = [tokenizer.bos_id] + encode_message("user", kwargs['prompt']) + encode_role("assistant")
+    prompt_tokens = [tokenizer.bos_id] + encode_message("user", kwargs["prompt"]) + encode_role("assistant")
     current_metrics.prompt_length = len(prompt_tokens)
     logger.log_info(f"Prompt encoded to {current_metrics.prompt_length} tokens")
 
@@ -533,11 +563,15 @@ def run_llama3(model_name: str, **kwargs) -> None:
     # Run prefill with timing
     logger.log_substep("Running prefill (prompt processing)")
     prefill_start = time.time()
+    from generation import prefill
+
     start_pos = prefill(model, prompt_tokens[:-1])
     prefill_end = time.time()
 
     current_metrics.prompt_processing_end = prefill_end
-    current_metrics.prompt_processing_duration = current_metrics.prompt_processing_end - current_metrics.prompt_processing_start
+    current_metrics.prompt_processing_duration = (
+        current_metrics.prompt_processing_end - current_metrics.prompt_processing_start
+    )
     logger.log_timing("Prompt processing", current_metrics.prompt_processing_duration)
 
     # ========== JIT COMPILATION PHASE COMPLETED ==========
@@ -547,32 +581,32 @@ def run_llama3(model_name: str, **kwargs) -> None:
     # Capture cache state after JIT compilation
     cache_after = get_cache_contents(cache_dir)
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("✅ JIT COMPILATION PHASE COMPLETED")
     print(f"⏱️  Duration: {jit_duration:.3f}s")
-    print("="*80)
+    print("=" * 80)
 
     # Show cache changes
-    if cache_after.get('exists', False):
-        before_files = cache_before.get('files', 0)
-        before_size = cache_before.get('total_size', 0)
-        files_added = cache_after.get('files', 0) - before_files
-        size_added = (cache_after.get('total_size', 0) - before_size) / (1024 * 1024)
+    if cache_after.get("exists", False):
+        before_files = cache_before.get("files", 0)
+        before_size = cache_before.get("total_size", 0)
+        files_added = cache_after.get("files", 0) - before_files
+        size_added = (cache_after.get("total_size", 0) - before_size) / (1024 * 1024)
         print(f"📊 Cache changes: +{files_added} files, +{size_added:.1f} MB")
 
         # Compare kernel counts
-        after_summary = cache_after.get('db_summary', {})
-        before_summary = cache_before.get('db_summary', {})
+        after_summary = cache_after.get("db_summary", {})
+        before_summary = cache_before.get("db_summary", {})
 
-        if after_summary.get('total_entries', 0) > 0:
-            kernels_added = after_summary.get('total_entries', 0) - before_summary.get('total_entries', 0)
+        if after_summary.get("total_entries", 0) > 0:
+            kernels_added = after_summary.get("total_entries", 0) - before_summary.get("total_entries", 0)
             print(f"🔧 Kernels compiled: +{kernels_added} new kernels")
 
             # Show breakdown of new kernel types
             if kernels_added > 0:
                 print("📋 Kernel type breakdown:")
-                for kernel_type, after_count in after_summary.get('kernel_types', {}).items():
-                    before_count = before_summary.get('kernel_types', {}).get(kernel_type, 0)
+                for kernel_type, after_count in after_summary.get("kernel_types", {}).items():
+                    before_count = before_summary.get("kernel_types", {}).get(kernel_type, 0)
                     added_count = after_count - before_count
                     if added_count > 0:
                         print(f"   • {kernel_type}: +{added_count} kernels (total: {after_count})")
@@ -581,12 +615,12 @@ def run_llama3(model_name: str, **kwargs) -> None:
             print("ℹ️  Cache analysis: Unable to read kernel details from database")
 
         # Special message for first runs
-        if before_summary.get('total_entries', 0) == 0:
+        if before_summary.get("total_entries", 0) == 0:
             print("🆕 First run detected - all kernels compiled from scratch")
     else:
         print("⚠️  Cache directory not found after JIT compilation")
 
-    print("="*80)
+    print("=" * 80)
 
     last_tok = prompt_tokens[-1]
 
@@ -598,10 +632,18 @@ def run_llama3(model_name: str, **kwargs) -> None:
     first_token_generated = False
     tokens_generated = 0
 
-    for i in range(kwargs['count']):
+    for i in range(kwargs["count"]):
         # Time each token generation
         token_start = time.time()
-        tok = model(Tensor([[last_tok]], device=device), start_pos, llama3.TEMPERATURE, llama3.TOP_K, llama3.TOP_P, llama3.ALPHA_F, llama3.ALPHA_P).item()
+        tok = model(
+            Tensor([[last_tok]], device=device),
+            start_pos,
+            generation.TEMPERATURE,
+            generation.TOP_K,
+            generation.TOP_P,
+            generation.ALPHA_F,
+            generation.ALPHA_P,
+        ).item()
         token_end = time.time()
 
         # Record first token timing (TTFT)
@@ -621,7 +663,7 @@ def run_llama3(model_name: str, **kwargs) -> None:
 
         decoded = tokenizer.decode([tok])
         generated_text += decoded
-        if not kwargs.get('noshow'):
+        if not kwargs.get("noshow"):
             print(decoded, end="", flush=True)
 
     # Record final metrics
@@ -646,27 +688,33 @@ def run_llama3(model_name: str, **kwargs) -> None:
     logger.log_info(f"Model: {model_name} ({model_size} params)")
     logger.log_info(f"Prompt length: {current_metrics.prompt_length} tokens")
     logger.log_info(f"Generated: {current_metrics.total_tokens} tokens")
-    logger.log_info(f"Model load time: {current_metrics.model_load_duration:.3f}s (cached: {current_metrics.model_was_cached})")
+    logger.log_info(
+        f"Model load time: {current_metrics.model_load_duration:.3f}s (cached: {current_metrics.model_was_cached})"
+    )
     logger.log_info(f"Prompt processing: {current_metrics.prompt_processing_duration:.3f}s")
     logger.log_info(f"TTFT: {current_metrics.time_to_first_token:.3f}s")
     logger.log_info(f"Time per token: {current_metrics.time_per_token:.3f}s")
     logger.log_info(f"Tokens/sec: {current_metrics.tokens_per_second:.1f}")
-    logger.log_info(f"GPU Memory: {current_metrics.gpu_memory_before:.1f}MB -> {current_metrics.gpu_memory_peak:.1f}MB (+{current_metrics.gpu_memory_peak - current_metrics.gpu_memory_before:.1f}MB)")
+    logger.log_info(
+        f"GPU Memory: {current_metrics.gpu_memory_before:.1f}MB -> {current_metrics.gpu_memory_peak:.1f}MB (+{current_metrics.gpu_memory_peak - current_metrics.gpu_memory_before:.1f}MB)"
+    )
 
-    if not kwargs.get('noshow'):
+    if not kwargs.get("noshow"):
         print()  # Final newline
+
 
 def run_gpt2(model_name: str, **kwargs) -> None:
     """Run GPT-2 model inference"""
-    from gpt2 import MODEL_PARAMS, GPT2
     from tinygrad import Tensor
+
+    from gpt2 import GPT2, MODEL_PARAMS
 
     if model_name not in MODEL_PARAMS and not model_name.startswith("gpt2_gguf_"):
         print(f"Error: Unknown GPT-2 model '{model_name}'. Available: {list(MODEL_PARAMS.keys())}")
         sys.exit(1)
 
-    if kwargs.get('seed') is not None:
-        Tensor.manual_seed(kwargs['seed'])
+    if kwargs.get("seed") is not None:
+        Tensor.manual_seed(kwargs["seed"])
 
     # Check if model is already cached in memory
     if model_name in _model_cache:
@@ -688,11 +736,11 @@ def run_gpt2(model_name: str, **kwargs) -> None:
         memory_tracker.record_model_load(model_name, memory_before, memory_after)
 
     texts = gpt2.generate(
-        kwargs['prompt'],
-        kwargs['count'],
-        kwargs['temperature'],
-        timing=kwargs['timing'],
-        batch_size=kwargs['batch_size']
+        kwargs["prompt"],
+        kwargs["count"],
+        kwargs["temperature"],
+        timing=kwargs["timing"],
+        batch_size=kwargs["batch_size"],
     )
 
     if len(texts) == 1:
@@ -701,15 +749,19 @@ def run_gpt2(model_name: str, **kwargs) -> None:
         for i, text in enumerate(texts):
             print(f"Response {i}: {text}")
 
-def run_interactive_chat(model_name: str, **kwargs) -> None:
-    """Run interactive chat mode using the generic chat interface"""
-    import os
+
+def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwargs) -> None:
+    """Run unified chat interface for both single-turn and interactive modes"""
     import time
     from pathlib import Path
 
-    print(f"🚀 Starting interactive chat with {model_name}")
-    print("💡 Enhanced with real-time performance statistics")
-    print("📝 Type 'quit', 'exit', or 'q' to end the session")
+    if single_turn_mode:
+        print(f"🚀 Running single-turn inference with {model_name}")
+        print("💡 Enhanced with comprehensive performance metrics")
+    else:
+        print(f"🚀 Starting interactive chat with {model_name}")
+        print("💡 Enhanced with real-time performance statistics")
+        print("📝 Type 'quit', 'exit', or 'q' to end the session")
 
     # Show JIT cache location
     cache_dir = Path.home() / ".cache" / "tinygrad"
@@ -747,7 +799,7 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
 
                 if tables:
                     # Assume the main table is 'cache' or similar - try common names
-                    table_candidates = ['cache', 'kernels', 'compiled_kernels']
+                    table_candidates = ["cache", "kernels", "compiled_kernels"]
                     main_table = None
 
                     for candidate in table_candidates:
@@ -774,29 +826,29 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
 
                         # Analyze entries for patterns
                         for row in rows:
-                            entry = dict(zip(column_names, row))
+                            entry = dict(zip(column_names, row, strict=False))
 
                             # Try to identify kernel type from key/name patterns
                             key_field = None
-                            for field in ['key', 'name', 'kernel_name', 'hash']:
+                            for field in ["key", "name", "kernel_name", "hash"]:
                                 if field in column_names:
-                                    key_field = entry.get(field, '')
+                                    key_field = entry.get(field, "")
                                     break
 
                             if key_field:
                                 # Extract operation type from key
                                 key_str = str(key_field)
-                                if 'matmul' in key_str.lower() or 'gemm' in key_str.lower():
-                                    op_type = 'matmul'
-                                elif 'conv' in key_str.lower():
-                                    op_type = 'conv'
-                                elif 'reduce' in key_str.lower():
-                                    op_type = 'reduce'
-                                elif 'elementwise' in key_str.lower() or 'alu' in key_str.lower():
-                                    op_type = 'elementwise'
+                                if "matmul" in key_str.lower() or "gemm" in key_str.lower():
+                                    op_type = "matmul"
+                                elif "conv" in key_str.lower():
+                                    op_type = "conv"
+                                elif "reduce" in key_str.lower():
+                                    op_type = "reduce"
+                                elif "elementwise" in key_str.lower() or "alu" in key_str.lower():
+                                    op_type = "elementwise"
                                 else:
                                     # Try to extract from first part of hash-like strings
-                                    op_type = 'other'
+                                    op_type = "other"
 
                                 db_summary["kernel_types"][op_type] = db_summary["kernel_types"].get(op_type, 0) + 1
 
@@ -814,31 +866,46 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
             "files": len(cache_files),
             "total_size": total_size,
             "db_entries": db_entries,
-            "db_summary": db_summary
+            "db_summary": db_summary,
         }
 
     cache_before = get_cache_contents(cache_dir)
-    print(f"📊 Cache state before JIT: {cache_before['files']} files, {cache_before['total_size']/(1024*1024):.1f} MB total")
+    print(
+        f"📊 Cache state before JIT: {cache_before['files']} files, {cache_before['total_size'] / (1024 * 1024):.1f} MB total"
+    )
 
     # Display cache contents summary
-    if cache_before.get('exists', False) and cache_before.get('db_summary', {}).get('total_entries', 0) > 0:
-        summary = cache_before['db_summary']
+    if cache_before.get("exists", False) and cache_before.get("db_summary", {}).get("total_entries", 0) > 0:
+        summary = cache_before["db_summary"]
         print(f"🗄️  Database contains {summary['total_entries']} cached kernels:")
-        for kernel_type, count in summary.get('kernel_types', {}).items():
+        for kernel_type, count in summary.get("kernel_types", {}).items():
             print(f"   • {kernel_type}: {count} kernels")
 
-        # Show sample entries
-        if cache_before.get('db_entries', []):
-            print("📝 Sample cache entries:")
-            for i, entry in enumerate(cache_before['db_entries'][:3]):
-                # Find the most informative field to display
-                key_info = ""
-                for field in ['key', 'name', 'kernel_name', 'hash']:
-                    if field in entry and entry[field]:
-                        key_info = f"{field}={str(entry[field])[:60]}..."
+        # Show cache state hash
+        if cache_before.get("db_entries", []):
+            # Create a hash of the cache state for reproducibility checking
+            cache_state_data = []
+            for entry in cache_before["db_entries"]:
+                # Use key fields to create a deterministic hash
+                entry_key = ""
+                for field in ["key", "name", "kernel_name", "hash"]:
+                    if entry.get(field):
+                        entry_key += str(entry[field])
                         break
-                if key_info:
-                    print(f"   {i+1}. {key_info}")
+                if entry_key:
+                    cache_state_data.append(entry_key)
+
+            if cache_state_data:
+                import hashlib
+
+                # Sort for deterministic hashing
+                cache_state_data.sort()
+                combined_state = "".join(cache_state_data)
+                cache_hash = hashlib.sha256(combined_state.encode()).hexdigest()[:16]
+                print(f"🔒 Cache state hash: {cache_hash}")
+                print(
+                    f"📊 Cache fingerprint: {summary['total_entries']} kernels, {len(summary.get('kernel_types', {}))} types"
+                )
     else:
         print("🆕 No existing cache found - first run will compile all kernels")
 
@@ -846,13 +913,16 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
     jit_start_time = time.time()
 
     # Determine model type and create appropriate interface
-    if model_name.startswith('llama3'):
-        # Load LLaMA 3 model using existing function
-        from llama3 import MODEL_PARAMS, build_transformer, Tokenizer, prefill
-        from tinygrad import Tensor, Device
+    if model_name.startswith("llama3"):
+        # Load LLaMA 3 model using refactored modules
+        from tinygrad import Device, Tensor
+
+        from generation import prefill
+        from model_config import build_transformer
+        from tokenizer import Tokenizer
 
         # Map friendly names to actual model sizes
-        size_map = {'llama3-1b': '1B', 'llama3-8b': '8B', 'llama3-70b': '70B', 'llama3-405b': '405B'}
+        size_map = {"llama3-1b": "1B", "llama3-8b": "8B", "llama3-70b": "70B", "llama3-405b": "405B"}
         if model_name not in size_map:
             print(f"Error: Unknown LLaMA model '{model_name}'")
             return
@@ -874,12 +944,16 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
             return
 
         if not model_path.exists() or not tokenizer_path.exists():
-            print(f"Model files not found. Please ensure model is downloaded.")
+            print("Model files not found. Please ensure model is downloaded.")
             return
 
         # Setup device and load model
-        device = tuple(f"{Device.DEFAULT}:{i}" for i in range(kwargs.get('shard', 1))) if kwargs.get('shard', 1) > 1 else Device.DEFAULT
-        model = build_transformer(model_path, model_size=model_size, device=device, quantize=kwargs.get('quantize'))
+        device = (
+            tuple(f"{Device.DEFAULT}:{i}" for i in range(kwargs.get("shard", 1)))
+            if kwargs.get("shard", 1) > 1
+            else Device.DEFAULT
+        )
+        model = build_transformer(model_path, model_size=model_size, device=device, quantize=kwargs.get("quantize"))
         tokenizer = Tokenizer(str(tokenizer_path))
 
         # Create chat interface
@@ -890,7 +964,7 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
         initial_tokens = chat_interface.encode_chat_session(session)
         start_pos = prefill(model, initial_tokens, device_param=device)
 
-    elif model_name.startswith('gpt2'):
+    elif model_name.startswith("gpt2"):
         # Load GPT-2 model using existing function
         from gpt2 import GPT2
 
@@ -914,10 +988,10 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
     gpt2_model = None
 
     # Set model-specific variables after loading
-    if model_name.startswith('llama3'):
+    if model_name.startswith("llama3"):
         llama_model = model
         llama_device = device
-    elif model_name.startswith('gpt2'):
+    elif model_name.startswith("gpt2"):
         gpt2_model = gpt2
 
     # JIT compilation is complete after model loading and initial setup
@@ -927,17 +1001,17 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
     # Compare cache state after JIT compilation
     cache_after = get_cache_contents(cache_dir)
 
-    print("="*80)
+    print("=" * 80)
     print("✅ JIT COMPILATION PHASE COMPLETED")
     print(f"⏱️  Duration: {jit_duration:.3f}s")
 
     # Show detailed cache changes
-    files_added = cache_after['files'] - cache_before['files']
-    size_added = (cache_after['total_size'] - cache_before['total_size']) / (1024 * 1024)  # MB
+    files_added = cache_after["files"] - cache_before["files"]
+    size_added = (cache_after["total_size"] - cache_before["total_size"]) / (1024 * 1024)  # MB
 
     # Compare kernel counts
-    before_kernels = cache_before['db_summary']['total_entries']
-    after_kernels = cache_after['db_summary']['total_entries']
+    before_kernels = cache_before["db_summary"]["total_entries"]
+    after_kernels = cache_after["db_summary"]["total_entries"]
     kernels_added = after_kernels - before_kernels
 
     if kernels_added > 0 or files_added > 0 or size_added > 0.1:
@@ -947,8 +1021,8 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
         # Show breakdown of new kernel types
         if kernels_added > 0:
             print("🆕 New kernel types compiled:")
-            before_types = cache_before['db_summary']['kernel_types']
-            after_types = cache_after['db_summary']['kernel_types']
+            before_types = cache_before["db_summary"]["kernel_types"]
+            after_types = cache_after["db_summary"]["kernel_types"]
 
             for kernel_type in after_types:
                 before_count = before_types.get(kernel_type, 0)
@@ -962,7 +1036,7 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
         if after_kernels > 0:
             print(f"   📊 Reusing {after_kernels} cached kernels")
 
-    print("="*80)
+    print("=" * 80)
 
     # Show additional cache information
     if cache_dir.exists():
@@ -976,28 +1050,39 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
             print(f"   ... and {len(cache_files) - 5} more files")
     print()
 
-    # Interactive chat loop
-    while True:
-        try:
-            user_input = input(chat_interface.format_interactive_prompt())
-            if user_input.lower() in ['quit', 'exit', 'q']:
-                print("👋 Goodbye!")
-                break
+    # Chat loop (single-turn or interactive)
+    if single_turn_mode:
+        # Single-turn mode: use the provided prompt
+        user_input = kwargs["prompt"]
+        print(f"Q: {user_input}")
+        session.add_message(MessageRole.USER, user_input)
 
-            # Add user message to session
-            session.add_message(MessageRole.USER, user_input)
+    # Interactive or single-turn loop
+    try:
+        while True:
+            if not single_turn_mode:
+                try:
+                    user_input = input(chat_interface.format_interactive_prompt())
+                    if user_input.lower() in ["quit", "exit", "q"]:
+                        print("👋 Goodbye!")
+                        break
+                    # Add user message to session
+                    session.add_message(MessageRole.USER, user_input)
+                except (KeyboardInterrupt, EOFError):
+                    print("\n👋 Goodbye!")
+                    break
 
             # Generate response with statistics tracking
             stats = chat_interface.create_response_stats()
             stats.start_generation()
 
-            if model_name.startswith('llama3'):
+            if model_name.startswith("llama3"):
                 # LLaMA 3 token-by-token generation
                 context_tokens, expected_role = chat_interface.prepare_generation_context(session)
 
                 # Run prefill for new context
                 if len(context_tokens) > len(initial_tokens):
-                    new_tokens = context_tokens[len(initial_tokens):]
+                    new_tokens = context_tokens[len(initial_tokens) :]
                     start_pos = prefill(llama_model, new_tokens, start_pos=start_pos, device_param=llama_device)
                     initial_tokens = context_tokens
 
@@ -1006,8 +1091,17 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
                 first_token = True
 
                 # Generate response tokens
+                print("A: ", end="", flush=True)
                 while True:
-                    tok = llama_model(Tensor([[last_tok]], device=llama_device), start_pos, kwargs.get('temperature', 0.7), 50, 0.95, 1.0, 0.0).item()
+                    tok = llama_model(
+                        Tensor([[last_tok]], device=llama_device),
+                        start_pos,
+                        kwargs.get("temperature", 0.7),
+                        50,
+                        0.95,
+                        1.0,
+                        0.0,
+                    ).item()
 
                     if first_token:
                         stats.record_first_token()
@@ -1035,9 +1129,12 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
 
                 # Manually calculate TTFT for batch generation
                 import time
+
                 generation_start = time.time()
 
-                response_texts = gpt2_model.generate(context_text, kwargs.get('count', 100), kwargs.get('temperature', 0.85), timing=False, batch_size=1)
+                response_texts = gpt2_model.generate(
+                    context_text, kwargs.get("count", 100), kwargs.get("temperature", 0.85), timing=False, batch_size=1
+                )
 
                 # Calculate TTFT manually since GPT-2 does batch generation
                 generation_end = time.time()
@@ -1047,7 +1144,7 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
                 if response_texts:
                     full_response = response_texts[0]
                     if full_response.startswith(context_text):
-                        response_text = full_response[len(context_text):].strip()
+                        response_text = full_response[len(context_text) :].strip()
                     else:
                         response_text = full_response.strip()
 
@@ -1056,7 +1153,7 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
                     for _ in response_tokens:
                         stats.record_token()
 
-                    print(response_text)
+                    print(f"A: {response_text}")
                 else:
                     response_text = ""
 
@@ -1067,67 +1164,80 @@ def run_interactive_chat(model_name: str, **kwargs) -> None:
             # Add assistant response to session
             session.add_message(MessageRole.ASSISTANT, response_text, stats)
 
-        except KeyboardInterrupt:
-            print("\n👋 Goodbye!")
-            break
-        except EOFError:
-            print("\n👋 Goodbye!")
-            break
+            # Exit after single turn in single-turn mode
+            if single_turn_mode:
+                break
+
+    except KeyboardInterrupt:
+        print("\n👋 Goodbye!")
+    except EOFError:
+        print("\n👋 Goodbye!")
+
 
 def main():
     # Standard defaults optimized for quality and performance
     defaults = {
-        'prompt': "What is the answer to life, the universe, and everything?",
-        'count': 100,
-        'temperature': 0.85,
-        'timing': False,
-        'seed': None,
-        'batch_size': 1,
-        'benchmark': -1,
-        'noshow': False,
+        "prompt": "What is the answer to life, the universe, and everything?",
+        "count": 100,
+        "temperature": 0.85,
+        "timing": False,
+        "seed": None,
+        "batch_size": 1,
+        "benchmark": -1,
+        "noshow": False,
     }
 
     # Available models
     available_models = {
         # LLaMA 3 models
-        'llama3-1b': 'LLaMA 3 1B parameters',
-        'llama3-8b': 'LLaMA 3 8B parameters',
-        'llama3-70b': 'LLaMA 3 70B parameters',
-        'llama3-405b': 'LLaMA 3 405B parameters',
+        "llama3-1b": "LLaMA 3 1B parameters",
+        "llama3-8b": "LLaMA 3 8B parameters",
+        "llama3-70b": "LLaMA 3 70B parameters",
+        "llama3-405b": "LLaMA 3 405B parameters",
         # GPT-2 models
-        'gpt2': 'GPT-2 124M parameters',
-        'gpt2-medium': 'GPT-2 350M parameters',
-        'gpt2-large': 'GPT-2 774M parameters',
-        'gpt2-xl': 'GPT-2 1.5B parameters',
+        "gpt2": "GPT-2 124M parameters",
+        "gpt2-medium": "GPT-2 350M parameters",
+        "gpt2-large": "GPT-2 774M parameters",
+        "gpt2-xl": "GPT-2 1.5B parameters",
         # GPT-2 GGUF quantized models
-        'gpt2_gguf_q4_0': 'GPT-2 Q4_0 quantized',
-        'gpt2_gguf_q8_0': 'GPT-2 Q8_0 quantized',
+        "gpt2_gguf_q4_0": "GPT-2 Q4_0 quantized",
+        "gpt2_gguf_q8_0": "GPT-2 Q8_0 quantized",
     }
 
     parser = argparse.ArgumentParser(
-        description='Unified inference for LLaMA 3 and GPT-2 models with multi-GPU support',
+        description="Unified inference for LLaMA 3 and GPT-2 models with multi-GPU support",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        epilog=f"Available models:\n" + "\n".join([f"  {k}: {v}" for k, v in available_models.items()]) +
-               "\n\nExamples:\n" +
-               "  python inference.py --model llama3-1b                      # Interactive chat with LLaMA 3 1B\n" +
-               "  python inference.py --model gpt2-medium                    # Interactive chat with GPT-2 Medium\n" +
-               "  python inference.py --model llama3-1b --prompt \"Hello\"      # Single generation\n" +
-               "  python inference.py --model llama3-8b --shard 2            # 8B model on 2 GPUs\n" +
-               "  python inference.py --model llama3-70b --shard 4 --quantize int8  # 70B model on 4 GPUs with quantization"
+        epilog="Available models:\n"
+        + "\n".join([f"  {k}: {v}" for k, v in available_models.items()])
+        + "\n\nExamples:\n"
+        + "  python inference.py --model llama3-1b                      # Interactive chat with LLaMA 3 1B\n"
+        + "  python inference.py --model gpt2-medium                    # Interactive chat with GPT-2 Medium\n"
+        + '  python inference.py --model llama3-1b --prompt "Hello"      # Single generation\n'
+        + "  python inference.py --model llama3-8b --shard 2            # 8B model on 2 GPUs\n"
+        + "  python inference.py --model llama3-70b --shard 4 --quantize int8  # 70B model on 4 GPUs with quantization",
     )
 
-    parser.add_argument('--model', type=str, required=True, help="Model name to use for inference")
-    parser.add_argument('--prompt', type=str, default=defaults['prompt'], help="Text prompt for single generation (if not provided, starts interactive chat)")
-    parser.add_argument('--count', type=int, default=defaults['count'], help="Maximum number of tokens to generate")
-    parser.add_argument('--temperature', type=float, default=defaults['temperature'], help="Sampling temperature (0.0 = deterministic)")
-    parser.add_argument('--timing', action='store_true', help="Show timing information per token")
-    parser.add_argument('--seed', type=int, help="Random seed for reproducible generation")
-    parser.add_argument('--batch_size', type=int, default=defaults['batch_size'], help="Batch size for generation")
-    parser.add_argument('--benchmark', type=int, default=defaults['benchmark'], help="Benchmark mode with N tokens (GPT-2 only)")
-    parser.add_argument('--noshow', action='store_true', help="Don't display the generated text")
-    parser.add_argument('--shard', type=int, default=1, help="Shard the model across multiple devices")
-    parser.add_argument('--quantize', choices=['int8', 'nf4', 'float16'], help="Quantization method")
-    parser.add_argument('--list-models', action='store_true', help="List all available models and exit")
+    parser.add_argument("--model", type=str, required=True, help="Model name to use for inference")
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default=defaults["prompt"],
+        help="Text prompt for single generation (if not provided, starts interactive chat)",
+    )
+    parser.add_argument("--count", type=int, default=defaults["count"], help="Maximum number of tokens to generate")
+    parser.add_argument(
+        "--temperature", type=float, default=defaults["temperature"], help="Sampling temperature (0.0 = deterministic)"
+    )
+    parser.add_argument("--timing", action="store_true", help="Show timing information per token")
+    parser.add_argument("--seed", type=int, help="Random seed for reproducible generation")
+    parser.add_argument("--batch_size", type=int, default=defaults["batch_size"], help="Batch size for generation")
+    parser.add_argument(
+        "--benchmark", type=int, default=defaults["benchmark"], help="Benchmark mode with N tokens (GPT-2 only)"
+    )
+    parser.add_argument("--noshow", action="store_true", help="Don't display the generated text")
+    parser.add_argument("--shard", type=int, default=1, help="Shard the model across multiple devices")
+    parser.add_argument("--quantize", choices=["int8", "nf4", "float16"], help="Quantization method")
+    parser.add_argument("--list-models", action="store_true", help="List all available models and exit")
 
     args = parser.parse_args()
 
@@ -1139,7 +1249,7 @@ def main():
 
     if args.model not in available_models:
         print(f"Error: Unknown model '{args.model}'")
-        print(f"Use --list-models to see available options")
+        print("Use --list-models to see available options")
         sys.exit(1)
 
     # Convert args to dict for easy passing
@@ -1149,8 +1259,9 @@ def main():
     if args.shard > 1:
         try:
             import subprocess
-            result = subprocess.run(['nvidia-smi', '-L'], capture_output=True, text=True, check=True)
-            gpu_count = len([line for line in result.stdout.strip().split('\n') if line.startswith('GPU')])
+
+            result = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, check=True)
+            gpu_count = len([line for line in result.stdout.strip().split("\n") if line.startswith("GPU")])
             if args.shard > gpu_count:
                 print(f"Error: Requested {args.shard} GPUs but only {gpu_count} available")
                 print(f"Available GPUs: {gpu_count}")
@@ -1162,15 +1273,11 @@ def main():
     print(f"Loading {args.model}...")
 
     try:
-        # Default to interactive chat mode when no custom prompt is provided
-        if args.prompt == defaults['prompt']:
-            run_interactive_chat(args.model, **kwargs)
-        elif args.model.startswith('llama3'):
-            run_llama3(args.model, **kwargs)
-        elif args.model.startswith('gpt2'):
-            if kwargs.get('shard', 1) > 1 or kwargs.get('quantize'):
-                print("Warning: GPT-2 models don't support sharding or quantization in this implementation")
-            run_gpt2(args.model, **kwargs)
+        # Use unified chat interface for both single-turn and interactive modes
+        single_turn_mode = args.prompt != defaults["prompt"]
+
+        if args.model.startswith("llama3") or args.model.startswith("gpt2"):
+            run_interactive_chat(args.model, single_turn_mode=single_turn_mode, **kwargs)
         else:
             print(f"Error: Unsupported model type for '{args.model}'")
             sys.exit(1)
@@ -1181,6 +1288,7 @@ def main():
     except Exception as e:
         print(f"Error during inference: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

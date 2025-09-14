@@ -101,10 +101,60 @@ uv run python llama3.py --timing --size 8B
 uv run python llama3.py --profile --size 8B
 ```
 
+## Code Quality and Development Tools
+
+### Linting and Code Quality
+The project uses **Ruff** for comprehensive Python linting and formatting:
+
+```bash
+# Install development dependencies
+uv sync --extra dev
+
+# Check code quality (recommended before commits)
+uv run ruff check
+
+# Auto-fix issues where possible
+uv run ruff check --fix
+
+# Format code
+uv run ruff format
+
+# Run security checks
+uv run bandit -r .
+
+# Use the convenience script for all checks
+python scripts/lint.py --all
+```
+
+### Pre-commit Hooks
+Automatic code quality checks on commit:
+
+```bash
+# Install pre-commit hooks
+uv run pre-commit install
+
+# Run hooks on all files manually
+uv run pre-commit run --all-files
+```
+
+### Development Workflow
+1. Make code changes
+2. Run `python scripts/lint.py --fix` to auto-fix issues
+3. Commit changes (pre-commit hooks will run automatically)
+4. Push changes
+
+### Linting Configuration
+- **Ruff**: Configured in `pyproject.toml` with comprehensive rules
+- **Pre-commit**: Configured in `.pre-commit-config.yaml`
+- **Security**: Bandit checks for common security issues
+- **Unused Code Detection**: Automatically detects unused imports and variables
+
 ## Notes for Claude Code
 
-- **Lint Command**: Not specified - check project for standard Python linting tools
-- **Type Check**: Not specified - check for mypy or similar type checking setup
+- **Lint Command**: `uv run ruff check` (fast, comprehensive Python linting)
+- **Format Command**: `uv run ruff format` (automatic code formatting)
+- **Type Check**: Not specified - Ruff includes basic type checking rules
 - **Test Command**: No test files present - benchmarking available via `--benchmark` flag
-- **Model Downloads**: Automatic download on first run, cached in `downloads/` directory
+- **Security Check**: `uv run bandit -r .` (security vulnerability scanning)
+- **Model Downloads**: Automatic download on first run, cached in `~/models/` directory
 - **GPU Support**: Leverages tinygrad's device abstraction for GPU acceleration
