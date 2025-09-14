@@ -27,6 +27,7 @@ class BenchmarkResult:
     iterations: int
 
     # Timing metrics (in seconds)
+    model_load_time: float  # Time to load model and tokenizer
     total_time: float
     cold_start_time: float  # Time for first inference (including JIT compilation)
     first_token_time: float  # Time for first token after cold start
@@ -197,9 +198,21 @@ class PyTorchBackend(FrameworkBackend):
         config = pytorch_backend.MODEL_CONFIGS[model_size]
         model = pytorch_backend.PyTorchLLaMA(**config)
 
+        # Apply same optimizations as TinyGrad for fair comparison
+        use_half = kwargs.get("use_half", True)  # Match TinyGrad mixed precision
+        use_compile = kwargs.get("use_compile", True)  # Match TinyGrad JIT
+
+        if use_half:
+            model = model.half()  # Use float16 like TinyGrad mixed precision
+
         # Move to device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = model.to(device)
+
+        if use_compile and hasattr(torch, 'compile'):
+            print("Applying torch.compile for fair comparison with TinyGrad JIT...")
+            model = torch.compile(model)
+
         model.eval()
 
         # Load weights if provided
@@ -313,8 +326,8 @@ def run_benchmark(
     print("Loading model...")
     start_time = time.time()
     model = backend.load_model(model_size, model_path, **kwargs)
-    model_load_time = time.time() - start_time
-    print(f"Model loaded in {model_load_time:.2f}s")
+    model_only_time = time.time() - start_time
+    print(f"Model loaded in {model_only_time:.2f}s")
 
     # Determine tokenizer path
     if model_path and model_path.is_dir():
@@ -326,7 +339,12 @@ def run_benchmark(
         tokenizer_path = Path.home() / "models" / f"llama3-{model_size.lower()}-instruct" / "tokenizer.model"
 
     print("Loading tokenizer...")
+    tokenizer_start_time = time.time()
     tokenizer = backend.load_tokenizer(tokenizer_path)
+    tokenizer_load_time = time.time() - tokenizer_start_time
+
+    # Total model loading time (model + tokenizer)
+    model_load_time = model_only_time + tokenizer_load_time
 
     # Get model info
     model_info = backend.get_model_info(model)
@@ -464,6 +482,7 @@ def run_benchmark(
         framework=backend.get_name(),
         model_size=model_size,
         iterations=len(token_times),
+        model_load_time=model_load_time,
         total_time=total_time,
         cold_start_time=cold_start_duration,
         first_token_time=first_steady_token_time,  # First token after cold start
@@ -494,6 +513,9 @@ def print_benchmark_results(result: BenchmarkResult) -> None:
 
     if result.quantization:
         print(f"Quantization: {result.quantization}")
+
+    print(f"\n📥 Model Loading:")
+    print(f"  Model load time:     {result.model_load_time:6.2f}s (model + tokenizer)")
 
     print("\n❄️  Cold Start Metrics:")
     print(f"  Cold start latency:  {result.cold_start_time * 1000:6.2f}ms (includes JIT compilation)")
@@ -534,6 +556,12 @@ def compare_results(results: list[BenchmarkResult]) -> None:
     print(f"{'Metric':<25} {' | '.join(f'{fw:>15}' for fw in frameworks)}")
     print("-" * (25 + len(frameworks) * 18))
 
+    # Model loading metrics
+    load_times = [r.model_load_time for r in results]
+    print(f"{'Model Load (s)':<25} {' | '.join(f'{lt:>15.2f}' for lt in load_times)}")
+
+    print()  # Separator
+
     # Cold start metrics
     cold_start_times = [r.cold_start_time * 1000 for r in results]
     cold_start_throughputs = [1.0 / r.cold_start_time for r in results]
@@ -559,6 +587,7 @@ def compare_results(results: list[BenchmarkResult]) -> None:
         r1, r2 = results
 
         # Calculate various performance ratios
+        load_time_ratio = r2.model_load_time / r1.model_load_time
         cold_start_ratio = r2.cold_start_time / r1.cold_start_time
         throughput_ratio = r1.avg_tokens_per_second / r2.avg_tokens_per_second
         steady_state_ratio = r1.steady_state_avg_tokens_per_second / r2.steady_state_avg_tokens_per_second
@@ -566,6 +595,12 @@ def compare_results(results: list[BenchmarkResult]) -> None:
         memory_ratio = r2.peak_memory_gb / r1.peak_memory_gb
 
         print(f"\n🏁 Performance Comparison ({r1.framework} vs {r2.framework}):")
+
+        # Model loading comparison
+        if load_time_ratio > 1:
+            print(f"  📥 {r1.framework} loads {load_time_ratio:.1f}x faster")
+        else:
+            print(f"  📥 {r2.framework} loads {1 / load_time_ratio:.1f}x faster")
 
         # Cold start comparison
         if cold_start_ratio > 1:
@@ -690,6 +725,14 @@ Examples:
     parser.add_argument("--quantize", choices=["int8", "nf4", "float16"], help="Quantization method")
     parser.add_argument("--shard", type=int, default=1, help="Number of device shards")
 
+    # Fairness options for PyTorch
+    parser.add_argument("--fair-comparison", action="store_true", default=True,
+                        help="Enable fair comparison mode (PyTorch uses same precision and optimizations as TinyGrad)")
+    parser.add_argument("--pytorch-no-compile", action="store_true",
+                        help="Disable torch.compile in PyTorch (default: enabled for fair comparison)")
+    parser.add_argument("--pytorch-no-half", action="store_true",
+                        help="Disable half precision in PyTorch (default: enabled for fair comparison)")
+
     args = parser.parse_args()
 
     # Validate model type matches the model path
@@ -726,6 +769,14 @@ Examples:
     results = []
     for backend in backends:
         try:
+            # Configure fairness options for PyTorch
+            fairness_kwargs = {}
+            if backend.get_name() == "PyTorch" and args.fair_comparison:
+                fairness_kwargs.update({
+                    "use_half": not args.pytorch_no_half,
+                    "use_compile": not args.pytorch_no_compile,
+                })
+
             result = run_benchmark(
                 backend=backend,
                 model_size=model_size,
@@ -733,6 +784,7 @@ Examples:
                 iterations=args.iterations,
                 quantize=args.quantize,
                 shard=args.shard,
+                **fairness_kwargs,
             )
             results.append(result)
             print_benchmark_results(result)

@@ -1,14 +1,46 @@
-# TinyGrad Demo - LLaMA 3 Implementation
+# Inference Engine Benchmark Suite
 
-This project provides a simplified LLaMA 3 implementation using TinyGrad with a unified benchmarking system for comparing performance across different ML frameworks including TinyGrad and PyTorch.
+This repository benchmarks leading inference engines for LLaMA 3 models, providing comprehensive performance comparisons across different ML frameworks and optimization levels.
+
+## Repository Goal
+
+The goal of this repository is to **benchmark leading inference engines** using standardized, fair, and reproducible tests. We focus on:
+
+- **Inference-only testing**: Pure token generation performance without serving optimizations
+- **No batching or caching**: Tests individual request performance, not serving throughput
+- **Unquantized LLaMA 3-1B**: Consistent model choice across all frameworks
+- **Fair comparisons**: Same model architecture, precision, and hardware conditions
+
+## Framework Coverage
+
+We test the following configurations:
+
+| Framework | Configuration | Optimization Level |
+|-----------|---------------|-------------------|
+| **PyTorch** | Unoptimized | Baseline float32, no compilation |
+| **PyTorch** | Optimized | float16 + torch.compile |
+| **TinyGrad** | Minimalist | Out-of-the-box with auto-JIT |
+| **TensorRT** | Unoptimized | Basic TensorRT engine |
+| **TensorRT** | Optimized | Full optimization pipeline |
+| **Ollama** | Out-of-the-box | Default Ollama serving |
+
+## Model Choice: LLaMA 3-1B
+
+We standardize on **unquantized LLaMA 3-1B** for all tests because:
+
+- **Mature ecosystem**: LLaMA 3 has been available long enough for all frameworks to optimize for it
+- **Consistent architecture**: Same transformer design across all implementations
+- **Reasonable size**: 1B parameters fit in consumer GPUs while being representative
+- **Broad support**: All target frameworks have LLaMA 3 implementations
 
 ## Features
 
-- **Simplified CLI Interface**: Easy-to-use command-line interface for running LLaMA models
-- **Unified Benchmarking**: Compare performance across TinyGrad and PyTorch frameworks
-- **Standardized Metrics**: Consistent reporting of latency, throughput, and memory usage
-- **Framework Abstraction**: Clean backend system for adding new frameworks
-- **Side-by-side Comparison**: Direct performance comparisons with relative speedup metrics
+- **Multi-Framework Support**: Unified benchmarking across PyTorch, TinyGrad, TensorRT, and Ollama
+- **Fair Comparison Controls**: Configurable optimization levels and precision settings
+- **Comprehensive Metrics**: Model loading time, cold start latency, steady-state throughput, memory usage
+- **Standardized Testing**: Same model, same hardware, same inference patterns across all engines
+- **Reproducible Results**: Detailed configuration tracking and consistent test conditions
+- **Extensible Architecture**: Clean backend system for adding new inference engines
 
 ## Quick Start
 
@@ -75,12 +107,21 @@ uv run src/benchmark.py --framework tinygrad pytorch --model-type llama --model-
 
 ### Benchmark Command Line Options
 
-- `--framework {tinygrad,pytorch} [...]`: Framework(s) to benchmark. If not specified, compares all frameworks.
-- `--model-type {llama,gpt}`: Model type to load (required)
-- `--model-path PATH`: Path to model directory or file (required)
+- `--framework {tinygrad,pytorch,tensorrt,ollama} [...]`: Framework(s) to benchmark. If not specified, compares all frameworks.
+- `--model-type {llama}`: Model type to load (standardized on llama)
+- `--model-path PATH`: Path to unquantized LLaMA 3-1B model (required)
 - `--iterations N`: Number of benchmark iterations (default: 20)
-- `--quantize {int8,nf4,float16}`: Quantization method
+
+#### Framework-Specific Options
+
+- `--pytorch-no-compile`: Disable torch.compile optimization (test unoptimized PyTorch)
+- `--pytorch-no-half`: Use float32 instead of float16 (test precision impact)
+- `--fair-comparison`: Enable fair comparison mode (default: enabled)
+
+#### Advanced Options
+
 - `--shard N`: Number of devices for model sharding
+- `--quantize {int8,nf4,float16}`: Quantization method (not recommended for benchmark standardization)
 
 ### Model Type Validation
 
@@ -97,53 +138,73 @@ uv run python benchmark.py --framework tinygrad --model-type gpt --model-path ~/
 # Error: Model type mismatch: Expected 'gpt' but detected 'llama'
 ```
 
-#### Currently Supported Model Types
+#### Currently Supported Frameworks
 
-- **LLaMA**: Fully supported (1B, 8B, 70B, 405B)
-- **GPT**: Not yet implemented (will show clear error message)
+| Framework | Status | Configuration | Notes |
+|-----------|--------|---------------|-------|
+| **TinyGrad** | ✅ Implemented | Out-of-the-box + auto-JIT | Reference implementation |
+| **PyTorch** | ✅ Implemented | Configurable optimization levels | Unoptimized & optimized modes |
+| **TensorRT** | 🚧 Planned | Engine + optimization pipeline | High-performance GPU inference |
+| **Ollama** | 🚧 Planned | Default serving configuration | Popular serving framework |
+
+#### Implementation Roadmap
+
+- **Phase 1** ✅: TinyGrad + PyTorch baseline comparison
+- **Phase 2** 🚧: TensorRT integration (unoptimized + optimized)
+- **Phase 3** 🚧: Ollama integration
+- **Phase 4** 🚧: Additional frameworks (ONNX Runtime, vLLM, etc.)
 
 ## Benchmark Results
 
-The unified benchmark system provides comprehensive metrics:
+Our standardized inference-only benchmark provides comprehensive performance metrics across all supported frameworks.
 
-### Performance Metrics
-- **Cold start latency**: Time for first inference (includes JIT compilation and warmup)
-- **Cold start throughput**: Tokens per second during initial inference
-- **Average latency**: Mean time per token generation (steady-state)
-- **First token latency**: Time to generate first token in steady-state
-- **Peak throughput**: Maximum tokens per second achieved
-- **Average throughput**: Mean tokens per second across all iterations
-- **Warmup improvement**: Performance gain from cold start to steady-state
+### Key Performance Metrics
 
-### Memory Metrics  
-- **Model memory**: Memory used by model weights
-- **Peak memory**: Maximum memory usage during inference
-- **Memory efficiency**: Framework-specific memory optimizations
+#### Inference Performance
+- **Model Loading Time**: Time to load model and tokenizer from disk
+- **Cold Start Latency**: First inference time (includes JIT compilation and warmup)
+- **Steady-State Latency**: Mean time per token after warmup
+- **Peak Throughput**: Maximum tokens per second achieved
+- **Average Throughput**: Mean tokens per second across all test iterations
 
-### Example Results
+#### Memory Efficiency
+- **Model Memory**: GPU memory used by model weights
+- **Peak Memory**: Maximum memory usage during inference
+- **Memory Overhead**: Framework-specific memory management costs
+
+#### Optimization Impact
+- **Warmup Improvement**: Performance gain from cold start to steady-state
+- **Precision Impact**: Performance difference between float32 and float16
+- **Compilation Benefit**: JIT compilation vs uncompiled performance
+
+### Example Results (LLaMA 3-1B Unquantized)
+
+Current benchmark results comparing TinyGrad vs PyTorch (fair comparison mode):
 
 ```
-📊 Framework Comparison
+📊 Framework Comparison - Inference Engine Benchmark
 ================================================================================
-Metric                           TinyGrad |         PyTorch
+Metric                           TinyGrad |    PyTorch-Opt |  PyTorch-Base
 -------------------------------------------------------------
-Cold Start (ms)                     50.92 |          281.02
-Cold Start (tok/s)                   19.6 |             3.6
+Model Load (s)                      15.66 |          31.24 |         38.43
+Cold Start (ms)                     50.89 |         392.86 |        223.13
+Steady-State Latency (ms)           12.29 |          24.28 |         24.43
+Average Throughput (tok/s)           81.4 |           41.2 |          40.9
+Peak Memory (GB)                     5.59 |           3.06 |          6.10
+Precision                           mixed |     float16    |      float32
 
-Avg Latency (ms)                    12.05 |           24.28
-Avg Throughput (tok/s)               83.0 |            41.2
-Steady-State (tok/s)                 83.0 |            41.2
-Peak Memory (GB)                     5.59 |            6.10
-
-🏁 Performance Comparison (TinyGrad vs PyTorch):
-  ❄️  TinyGrad has 5.5x faster cold start
-  🔥 TinyGrad is 2.0x faster in steady-state throughput
-  ⚡ TinyGrad is 2.0x faster in average throughput
-  ⏱️  TinyGrad has 2.0x lower latency
-  💾 TinyGrad uses 1.1x less memory
+🏁 Performance Analysis:
+  📥 TinyGrad loads 2.0x faster than optimized PyTorch
+  ❄️  TinyGrad has 7.7x faster cold start than optimized PyTorch
+  🔥 TinyGrad achieves 2.0x higher steady-state throughput
+  💾 Memory usage varies by precision: float16 < mixed < float32
 ```
 
-Results show TinyGrad consistently outperforming PyTorch across all metrics for LLaMA inference.
+**Note**: Results demonstrate inference-only performance without batching, caching, or serving optimizations. See [fair-benchmark.md](fair-benchmark.md) for detailed fairness analysis.
+
+### Coming Soon
+
+Full benchmark matrix including TensorRT and Ollama across multiple optimization configurations.
 
 ## Architecture
 
