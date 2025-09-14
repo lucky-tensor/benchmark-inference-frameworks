@@ -512,13 +512,14 @@ def run_gpt2(model_name: str, **kwargs) -> None:
             # Create a hash of the cache state for reproducibility checking
             cache_state_data = []
             for entry in cache_before["db_entries"]:
-                # Use key fields to create a deterministic hash
-                entry_key = ""
+                # Use key fields to create a deterministic hash - combine all available fields
+                entry_fields = []
                 for field in ["key", "name", "kernel_name", "hash"]:
                     if entry.get(field):
-                        entry_key += str(entry[field])
-                        break
-                if entry_key:
+                        entry_fields.append(f"{field}:{entry[field]}")
+
+                if entry_fields:
+                    entry_key = "|".join(entry_fields)
                     cache_state_data.append(entry_key)
 
             if cache_state_data:
@@ -892,13 +893,14 @@ def run_interactive_chat(model_name: str, single_turn_mode: bool = False, **kwar
             # Create a hash of the cache state for reproducibility checking
             cache_state_data = []
             for entry in cache_before["db_entries"]:
-                # Use key fields to create a deterministic hash
-                entry_key = ""
+                # Use key fields to create a deterministic hash - combine all available fields
+                entry_fields = []
                 for field in ["key", "name", "kernel_name", "hash"]:
                     if entry.get(field):
-                        entry_key += str(entry[field])
-                        break
-                if entry_key:
+                        entry_fields.append(f"{field}:{entry[field]}")
+
+                if entry_fields:
+                    entry_key = "|".join(entry_fields)
                     cache_state_data.append(entry_key)
 
             if cache_state_data:
