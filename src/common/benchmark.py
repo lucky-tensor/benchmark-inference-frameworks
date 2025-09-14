@@ -5,8 +5,8 @@ Benchmarking functionality for model performance testing.
 from tinygrad import Device, GlobalCounters, Tensor
 from tinygrad.helpers import DEBUG, Profiling, Timing, colored
 
-from extra.bench_log import BenchEvent, WallTimeEvent
-from generation import TEMPERATURE, encode_message, encode_role, prefill
+from ..llama.extra.bench_log import BenchEvent, WallTimeEvent
+from .generation import TEMPERATURE, encode_message, encode_role, prefill
 
 
 def run_benchmark(model, tokenizer, args, param_bytes, device):

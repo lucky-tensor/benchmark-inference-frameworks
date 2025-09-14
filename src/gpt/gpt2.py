@@ -17,13 +17,13 @@ from tinygrad.nn import Embedding, LayerNorm, Linear
 from tinygrad.nn.state import get_state_dict, gguf_load, load_state_dict, torch_load
 from tinygrad.uop.ops import UOp
 
-from chat_interface import (
+from ..common.chat_interface import (
     ChatSession,
     GPT2ChatInterface,
     MessageRole,
     create_simple_session,
 )
-from extra.bench_log import BenchEvent, WallTimeEvent
+from ..llama.extra.bench_log import BenchEvent, WallTimeEvent
 
 MAX_CONTEXT = getenv("MAX_CONTEXT", 1024)
 HALF = getenv("HALF")

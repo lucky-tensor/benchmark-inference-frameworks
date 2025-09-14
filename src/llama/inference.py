@@ -20,7 +20,7 @@ os.environ["TINYGRAD_JIT"] = "1"
 from tinygrad.helpers import GlobalCounters
 
 # Import chat interface for interactive mode
-from chat_interface import (
+from ..common.chat_interface import (
     ChatMessage,
     ChatSession,
     GPT2ChatInterface,
@@ -310,7 +310,7 @@ def run_gpt2(model_name: str, **kwargs) -> None:
         sys.exit(1)
 
     # Set temperature and other globals needed by generation.py
-    import generation
+    from ..common import generation
 
     generation.TEMPERATURE = kwargs["temperature"]
     generation.TOP_K = 50

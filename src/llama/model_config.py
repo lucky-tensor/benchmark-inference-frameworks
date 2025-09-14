@@ -10,8 +10,8 @@ from tinygrad import Context, Device, Tensor, dtypes, nn
 from tinygrad.helpers import fetch
 from tinygrad.nn.state import gguf_load, load_state_dict, safe_load, torch_load
 
-from extra.bench_log import BenchEvent, WallTimeEvent
-from extra.models.llama import convert_from_gguf, convert_from_huggingface, fix_bf16
+from .extra.bench_log import BenchEvent, WallTimeEvent
+from .extra.models.llama import convert_from_gguf, convert_from_huggingface, fix_bf16
 
 MODEL_PARAMS = {
     "1B": {
@@ -105,7 +105,7 @@ def build_transformer(
     load_weights_flag=True,
 ):
     from extra.models.llama import Transformer
-    from quantization import Int8Embedding, Int8Linear, NF4Linear
+    from ..common.quantization import Int8Embedding, Int8Linear, NF4Linear
 
     if quantize == "int8":
         linear, embedding, quantize_embeds = Int8Linear, Int8Embedding, True

@@ -62,7 +62,7 @@ def create_web_api(model, tokenizer, device, args):
 
     @app.post("/v1/completions")
     def completions():
-        from generation import ALPHA_F, ALPHA_P, TEMPERATURE, TOP_K, TOP_P, prefill
+        from .generation import ALPHA_F, ALPHA_P, TEMPERATURE, TOP_K, TOP_P, prefill
 
         rjson = json.loads(request.body.read())
 
@@ -97,7 +97,7 @@ def create_web_api(model, tokenizer, device, args):
 
     @app.post("/v1/chat/token/encode")
     def chat_token_encode():
-        from generation import encode_message, encode_role
+        from .generation import encode_message, encode_role
 
         rjson = json.loads(request.body.read())
         if "messages" not in rjson:
@@ -111,7 +111,7 @@ def create_web_api(model, tokenizer, device, args):
 
     @app.post("/v1/chat/completions")
     def chat_completions():
-        from generation import (
+        from .generation import (
             ALPHA_F,
             ALPHA_P,
             TEMPERATURE,
