@@ -275,3 +275,178 @@ Areas requiring custom implementation:
 - **Cache Sharing**: Manual hardware fingerprinting and compatibility validation needed
 
 For production large model deployments, TinyGrad is best suited for single-node multi-GPU configurations with careful memory planning and cache management.
+
+## Additional Research Questions
+
+### 8. Non-Volatile Memory for Multi-Process Weight Sharing
+
+#### Question
+Can we use non-volatile memory to allow different processes to share access to the weights on the GPU?
+
+#### Current State and Technical Feasibility
+**Answer**: Limited support exists, but significant technical challenges remain for practical implementation.
+
+**CUDA Unified Memory Capabilities**:
+- **Unified Memory**: CUDA provides managed memory that creates a shared pool between CPU and GPU with automatic migration
+- **Multi-Process Access**: NVIDIA Multi-Process Service (MPS) enables cooperative multi-process CUDA applications
+- **Virtual Memory**: OpenCL 3.0 supports Shared Virtual Memory (SVM) allowing common address space across devices
+
+**Non-Volatile Memory Research (2024)**:
+```
+Performance Benefits:
+- STT-MRAM: 2.2x EDP reduction, 2.3x cache capacity vs SRAM
+- SOT-MRAM: 2.4x EDP reduction, 3.3x cache capacity vs SRAM
+- In-Memory Computing: NVM arrays can represent weight matrices directly
+```
+
+**Technical Implementation Challenges**:
+- **Hardware Specificity**: GPU compiled kernels are device-architecture specific
+- **Memory Coherency**: Complex synchronization required across multiple processes
+- **Performance Overhead**: Memory mapping and sharing introduces latency penalties
+
+**TinyGrad Compatibility Assessment**:
+- **Current Architecture**: Static weight allocation during model loading
+- **Device Tuples**: Multi-GPU support uses `device=(gpu0, gpu1, ...)` for sharding
+- **Cache System**: SQLite-based kernel cache already provides some level of sharing
+
+**Recommended Implementation Strategy**:
+1. **Memory-Mapped Files**: Use OS-level memory mapping for weight sharing
+2. **Copy-on-Write**: Implement COW semantics for weight modifications
+3. **Process Synchronization**: Add mutex/semaphore for concurrent access control
+4. **Hardware Fingerprinting**: Ensure GPU compatibility before sharing
+
+### 9. Attention Caching and PagedAttention Implementation
+
+#### Question
+Does TinyGrad offer any caching of "attention", like vLLM PagedAttention? If not, explain how we would implement cache for attention.
+
+#### Current TinyGrad Attention Caching
+**Answer**: TinyGrad implements basic KV caching but lacks advanced PagedAttention-style memory management.
+
+**Existing KV Cache Implementation**:
+```python
+# From extra/models/llama.py - TinyGrad's KV Cache
+if self.max_context:
+    if not hasattr(self, "cache_kv"):
+        # Allocate contiguous KV cache for full context
+        self.cache_kv = Tensor.zeros(2, bsz, self.max_context,
+                                   self.n_kv_heads, self.head_dim,
+                                   dtype=x.dtype).contiguous().realize()
+
+        # Multi-GPU sharding support
+        if isinstance(x.device, tuple):
+            self.cache_kv.shard_((x.device),
+                               axis=3 if getenv("SHARD_KVCACHE") else None)
+
+    # Update cache with new key-value pairs
+    self.cache_kv[:, :, start_pos:start_pos+seqlen, :, :].assign(
+        Tensor.stack(xk, xv)).realize()
+
+    # Extract keys and values for attention
+    keys = self.cache_kv[0, :, 0:start_pos+seqlen, :, :]
+    values = self.cache_kv[1, :, 0:start_pos+seqlen, :, :]
+```
+
+**Current Limitations vs PagedAttention**:
+- **Contiguous Allocation**: TinyGrad allocates full context upfront vs dynamic blocks
+- **Memory Fragmentation**: No block-based memory management like vLLM
+- **Fixed Context**: `max_context` parameter limits flexibility
+- **No Prefix Caching**: Lacks automatic caching of common prefixes
+
+**PagedAttention Implementation Strategy for TinyGrad**:
+
+```python
+class PagedAttentionCache:
+    def __init__(self, block_size=16, max_blocks=1000):
+        self.block_size = block_size
+        self.max_blocks = max_blocks
+
+        # Physical memory pool
+        self.kv_blocks = Tensor.zeros(
+            max_blocks, 2, block_size, n_kv_heads, head_dim
+        ).realize()
+
+        # Block allocation tracking
+        self.free_blocks = list(range(max_blocks))
+        self.allocated_blocks = {}  # seq_id -> [block_ids]
+
+    def allocate_sequence(self, seq_id, required_blocks):
+        """Allocate blocks for a new sequence"""
+        if len(self.free_blocks) < required_blocks:
+            self._evict_lru_blocks(required_blocks)
+
+        blocks = [self.free_blocks.pop() for _ in range(required_blocks)]
+        self.allocated_blocks[seq_id] = blocks
+        return blocks
+
+    def get_kv_for_sequence(self, seq_id, start_pos, seqlen):
+        """Retrieve KV cache blocks for sequence"""
+        blocks = self.allocated_blocks[seq_id]
+
+        # Calculate which blocks are needed
+        start_block = start_pos // self.block_size
+        end_block = (start_pos + seqlen - 1) // self.block_size
+
+        kv_data = []
+        for block_idx in range(start_block, end_block + 1):
+            if block_idx < len(blocks):
+                block_id = blocks[block_idx]
+                kv_data.append(self.kv_blocks[block_id])
+
+        return self._concatenate_blocks(kv_data, start_pos, seqlen)
+
+    def update_kv_cache(self, seq_id, start_pos, new_kv):
+        """Update KV cache with new key-value pairs"""
+        blocks = self.allocated_blocks[seq_id]
+
+        # Distribute new KV data across blocks
+        for i, kv_chunk in enumerate(self._split_to_blocks(new_kv)):
+            block_idx = (start_pos + i * self.block_size) // self.block_size
+            if block_idx < len(blocks):
+                block_id = blocks[block_idx]
+                offset = (start_pos + i * self.block_size) % self.block_size
+                self.kv_blocks[block_id][:, offset:offset+len(kv_chunk)] = kv_chunk
+
+# Modified Attention class with PagedAttention
+class PagedAttention(Attention):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.paged_cache = PagedAttentionCache()
+
+    def __call__(self, x, start_pos, freqs_cis, mask=None, seq_id=0):
+        xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
+
+        if self.max_context:
+            # Ensure sequence has allocated blocks
+            if seq_id not in self.paged_cache.allocated_blocks:
+                required_blocks = (self.max_context +
+                                 self.paged_cache.block_size - 1) // self.paged_cache.block_size
+                self.paged_cache.allocate_sequence(seq_id, required_blocks)
+
+            # Update cache with new KV pairs
+            self.paged_cache.update_kv_cache(seq_id, start_pos,
+                                           Tensor.stack(xk, xv))
+
+            # Retrieve cached KV data
+            keys, values = self.paged_cache.get_kv_for_sequence(
+                seq_id, 0, start_pos + x.shape[1])
+        else:
+            keys, values = xk, xv
+
+        return self._compute_attention(xq, keys, values, mask)
+```
+
+**Advanced Features for Production**:
+1. **Prefix Caching**: Hash common prefixes and share KV cache blocks
+2. **Memory Pool Management**: Dynamic allocation/deallocation of cache blocks
+3. **Multi-GPU Sharding**: Distribute cache blocks across GPU devices
+4. **Quantized Cache**: Use FP8/INT8 for cache to reduce memory footprint
+5. **LRU Eviction**: Implement least-recently-used eviction policies
+
+**Performance Optimizations**:
+- **Block Coalescing**: Combine adjacent blocks for efficient attention computation
+- **Async Updates**: Overlap cache updates with computation
+- **Memory Prefetching**: Preload likely-needed blocks
+- **Compression**: Use attention sparsity patterns to reduce cache size
+
+This PagedAttention implementation would provide TinyGrad with memory-efficient attention caching similar to vLLM, enabling better utilization of GPU memory for long context sequences.
