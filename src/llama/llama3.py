@@ -188,8 +188,8 @@ def run_interactive_mode(model, tokenizer, device, args, param_bytes):
             print(f"\\n{stats.format_stats()}\\n")
 
             session.add_message(MessageRole.ASSISTANT, response_text, stats)
-            initial_tokens.extend(chat_interface.encode_message(ChatMessage(MessageRole.USER, user_input)))
-            initial_tokens.extend(chat_interface.encode_message(ChatMessage(MessageRole.ASSISTANT, response_text)))
+            # Update initial_tokens to match the current session state
+            initial_tokens = chat_interface.encode_chat_session(session)
 
         except KeyboardInterrupt:
             print("\\nGoodbye!")
