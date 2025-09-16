@@ -22,11 +22,7 @@ def get_tinygrad_model(model_size: str, model_path: Path | None = None, **kwargs
     if model_path and model_path.is_dir():
         # Look for GGUF files in the directory
         gguf_files = list(model_path.glob("*.gguf"))
-        if gguf_files:
-            resolved_path = gguf_files[0]  # Use the first GGUF file found
-        else:
-            # Fall back to resolve_model_path
-            resolved_path = resolve_model_path(model_path, model_size, False)
+        resolved_path = gguf_files[0] if gguf_files else resolve_model_path(model_path, model_size, False)
     else:
         # Resolve model path normally
         resolved_path = resolve_model_path(model_path, model_size, False)
@@ -36,12 +32,7 @@ def get_tinygrad_model(model_size: str, model_path: Path | None = None, **kwargs
     device = tuple(f"{Device.DEFAULT}:{i}" for i in range(shard)) if shard > 1 else Device.DEFAULT
 
     # Build model
-    return build_transformer(
-        resolved_path,
-        model_size=model_size,
-        quantize=kwargs.get("quantize"),
-        device=device
-    )
+    return build_transformer(resolved_path, model_size=model_size, quantize=kwargs.get("quantize"), device=device)
 
 
 def get_tinygrad_tokenizer(tokenizer_path: Path):
@@ -58,11 +49,7 @@ def prepare_tinygrad_input(model, tokenizer):
     from common.generation import encode_message, encode_role, prefill
 
     # Prepare input tokens (same as TinyGrad benchmark)
-    toks = [
-        tokenizer.bos_id,
-        *encode_message("user", "Hello.", tokenizer),
-        *encode_role("assistant", tokenizer)
-    ]
+    toks = [tokenizer.bos_id, *encode_message("user", "Hello.", tokenizer), *encode_role("assistant", tokenizer)]
 
     # Prefill the model
     start_pos = prefill(model, toks[:-1])
@@ -81,15 +68,7 @@ def run_tinygrad_inference(model, input_data: int, start_pos: int):
 
     device = model.tok_embeddings.weight.device if hasattr(model.tok_embeddings.weight, "device") else "cuda"
 
-    tok = model(
-        Tensor([[input_data]], device=device),
-        start_pos,
-        TEMPERATURE,
-        TOP_K,
-        TOP_P,
-        ALPHA_F,
-        ALPHA_P
-    )
+    tok = model(Tensor([[input_data]], device=device), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
 
     return tok.item()
 
@@ -113,6 +92,7 @@ def get_tinygrad_model_info(model):
 def get_tinygrad_device_info():
     """Get TinyGrad device information."""
     from tinygrad import Device
+
     return str(Device.DEFAULT)
 
 
@@ -159,7 +139,7 @@ def run_tinygrad_benchmark(model_size: str = "1B", model_path: Path | None = Non
     cold_start_time = time.perf_counter()
 
     try:
-        cold_start_token = run_tinygrad_inference(model, input_data, start_pos)
+        _cold_start_token = run_tinygrad_inference(model, input_data, start_pos)
         cold_start_end = time.perf_counter()
         cold_start_duration = cold_start_end - cold_start_time
 
@@ -282,14 +262,16 @@ def main():
         model = get_tinygrad_model(args.size, args.model, quantize=args.quantize, shard=args.shard)
 
         # Load tokenizer
-        tokenizer_path = args.model / "tokenizer.model" if args.model else Path.home() / "models/llama3-1b-instruct/tokenizer.model"
+        tokenizer_path = (
+            args.model / "tokenizer.model" if args.model else Path.home() / "models/llama3-1b-instruct/tokenizer.model"
+        )
         tokenizer = get_tinygrad_tokenizer(tokenizer_path)
 
         print("TinyGrad LLaMA Model loaded. Type 'quit' to exit.")
 
         while True:
             user_input = input("User: ")
-            if user_input.lower() == 'quit':
+            if user_input.lower() == "quit":
                 break
 
             # Simple generation using TinyGrad's built-in chat interface

@@ -10,7 +10,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 
 @dataclass
@@ -22,11 +22,11 @@ class TimeLog:
     """
 
     # Core timing steps
-    model_loading: Union[float, None] = None
-    model_compilation: Union[float, None] = None
-    tokenizer_loading: Union[float, None] = None
-    memory_clearing: Union[float, None] = None
-    cold_start: Union[float, None] = None
+    model_loading: float | None = None
+    model_compilation: float | None = None
+    tokenizer_loading: float | None = None
+    memory_clearing: float | None = None
+    cold_start: float | None = None
 
     # Inference timing arrays
     iteration_times: list[float] = field(default_factory=list)
@@ -34,8 +34,8 @@ class TimeLog:
     steady_state_times: list[float] = field(default_factory=list)
 
     # Cleanup timing
-    framework_cleanup: Union[float, None] = None
-    memory_cleanup: Union[float, None] = None
+    framework_cleanup: float | None = None
+    memory_cleanup: float | None = None
 
     def start_timer(self) -> float:
         """Start a timer and return the start time."""
@@ -69,8 +69,15 @@ class TimeLog:
     def get_total_time(self) -> float:
         """Get total benchmark time."""
         total = 0.0
-        for attr_name in ['model_loading', 'model_compilation', 'tokenizer_loading',
-                         'memory_clearing', 'cold_start', 'framework_cleanup', 'memory_cleanup']:
+        for attr_name in [
+            "model_loading",
+            "model_compilation",
+            "tokenizer_loading",
+            "memory_clearing",
+            "cold_start",
+            "framework_cleanup",
+            "memory_cleanup",
+        ]:
             value = getattr(self, attr_name)
             if value is not None:
                 total += value
@@ -120,7 +127,7 @@ class BenchRun:
 
     # Framework specification
     framework_name: str  # e.g., "tinygrad", "pytorch-unoptimized", "pytorch-inductor"
-    framework_version: Union[str, None] = None
+    framework_version: str | None = None
 
     # Benchmark configuration
     iterations: int = 20
@@ -140,43 +147,43 @@ class BenchRun:
 
     # Results and timing (populated during execution)
     time_log: TimeLog = field(default_factory=TimeLog)
-    results: Union[BenchmarkResults, None] = None
-    model_instance: Union[Any, None] = None
-    tokenizer_instance: Union[Any, None] = None
+    results: BenchmarkResults | None = None
+    model_instance: Any | None = None
+    tokenizer_instance: Any | None = None
 
     # Execution state
     is_executed: bool = False
-    execution_error: Union[str, None] = None
+    execution_error: str | None = None
 
     def get_framework_type(self) -> str:
         """Get the base framework type (e.g., 'pytorch' from 'pytorch-inductor')."""
-        return self.framework_name.split('-')[0]
+        return self.framework_name.split("-")[0]
 
-    def get_framework_variant(self) -> Union[str, None]:
+    def get_framework_variant(self) -> str | None:
         """Get the framework variant (e.g., 'inductor' from 'pytorch-inductor')."""
-        parts = self.framework_name.split('-', 1)
+        parts = self.framework_name.split("-", 1)
         return parts[1] if len(parts) > 1 else None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            'model_id': self.model_id,
-            'model_path': str(self.model_path),
-            'model_algo': self.model_algo,
-            'framework_name': self.framework_name,
-            'framework_version': self.framework_version,
-            'iterations': self.iterations,
-            'warmup_iterations': self.warmup_iterations,
-            'device': self.device,
-            'precision': self.precision,
-            'temperature': self.temperature,
-            'top_k': self.top_k,
-            'top_p': self.top_p,
-            'alpha_f': self.alpha_f,
-            'alpha_p': self.alpha_p,
-            'framework_options': self.framework_options,
-            'is_executed': self.is_executed,
-            'execution_error': self.execution_error,
+            "model_id": self.model_id,
+            "model_path": str(self.model_path),
+            "model_algo": self.model_algo,
+            "framework_name": self.framework_name,
+            "framework_version": self.framework_version,
+            "iterations": self.iterations,
+            "warmup_iterations": self.warmup_iterations,
+            "device": self.device,
+            "precision": self.precision,
+            "temperature": self.temperature,
+            "top_k": self.top_k,
+            "top_p": self.top_p,
+            "alpha_f": self.alpha_f,
+            "alpha_p": self.alpha_p,
+            "framework_options": self.framework_options,
+            "is_executed": self.is_executed,
+            "execution_error": self.execution_error,
         }
 
 
@@ -267,19 +274,16 @@ class BenchmarkSuite:
         """Add a benchmark run to the suite."""
         self.bench_runs.append(bench_run)
 
-    def create_benchmark(self,
-                        model_id: str,
-                        model_path: Union[str, Path],
-                        model_algo: str,
-                        framework_name: str,
-                        **kwargs) -> BenchRun:
+    def create_benchmark(
+        self, model_id: str, model_path: str | Path, model_algo: str, framework_name: str, **kwargs
+    ) -> BenchRun:
         """Create and add a benchmark run with the given parameters."""
         bench_run = BenchRun(
             model_id=model_id,
             model_path=Path(model_path),
             model_algo=model_algo,
             framework_name=framework_name,
-            **kwargs
+            **kwargs,
         )
         self.add_benchmark(bench_run)
         return bench_run
@@ -309,7 +313,7 @@ class BenchmarkSuite:
             bench_run.time_log.model_loading = bench_run.time_log.end_timer(start_time)
 
             # Compile model (if supported)
-            if hasattr(executor, 'compile_model') and callable(executor.compile_model):
+            if hasattr(executor, "compile_model") and callable(executor.compile_model):
                 start_time = bench_run.time_log.start_timer()
                 executor.compile_model(bench_run)
                 bench_run.time_log.model_compilation = bench_run.time_log.end_timer(start_time)
@@ -356,7 +360,9 @@ class BenchmarkSuite:
                 throughput = 1.0 / iteration_time if iteration_time > 0 else 0
                 status_symbol = "🌡️" if is_warmup else "⚡"
                 warmup_text = " (warmup)" if is_warmup else ""
-                print(f"{status_symbol} Iteration {i + 1:2d}: {iteration_time * 1000:6.2f}ms, {throughput:6.1f} tok/s{warmup_text}")
+                print(
+                    f"{status_symbol} Iteration {i + 1:2d}: {iteration_time * 1000:6.2f}ms, {throughput:6.1f} tok/s{warmup_text}"
+                )
 
             # Calculate results
             steady_state_times = bench_run.time_log.steady_state_times
@@ -374,13 +380,13 @@ class BenchmarkSuite:
                 peak_throughput_tokens_per_sec=peak_throughput,
                 steady_state_throughput_tokens_per_sec=steady_state_throughput,
                 cold_start_latency_ms=cold_start_time * 1000,
-                model_memory_gb=model_info.get('model_memory_gb', 0),
-                peak_memory_gb=model_info.get('peak_memory_gb', model_info.get('model_memory_gb', 0)),
-                total_parameters=model_info.get('total_parameters', 0),
-                loaded_parameters=model_info.get('loaded_parameters', model_info.get('total_parameters', 0)),
-                precision=model_info.get('precision', bench_run.precision),
+                model_memory_gb=model_info.get("model_memory_gb", 0),
+                peak_memory_gb=model_info.get("peak_memory_gb", model_info.get("model_memory_gb", 0)),
+                total_parameters=model_info.get("total_parameters", 0),
+                loaded_parameters=model_info.get("loaded_parameters", model_info.get("total_parameters", 0)),
+                precision=model_info.get("precision", bench_run.precision),
                 warmup_improvement_factor=warmup_improvement,
-                compilation_success=True
+                compilation_success=True,
             )
 
             # Cleanup
@@ -437,6 +443,8 @@ class BenchmarkSuite:
 
         for run in executed_runs:
             if run.results:
-                print(f"{run.framework_name:<20} {run.model_id:<12} "
-                      f"{run.results.steady_state_throughput_tokens_per_sec:<18.1f} "
-                      f"{run.results.cold_start_latency_ms:<15.1f}")
+                print(
+                    f"{run.framework_name:<20} {run.model_id:<12} "
+                    f"{run.results.steady_state_throughput_tokens_per_sec:<18.1f} "
+                    f"{run.results.cold_start_latency_ms:<15.1f}"
+                )

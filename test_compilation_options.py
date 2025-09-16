@@ -16,22 +16,29 @@ COMPILATION_OPTIONS = [
     ("inductor_reduce_overhead", "Inductor with reduce-overhead mode"),
 ]
 
+
 def run_pytorch_benchmark_with_option(option_name, description, iterations=10):
     """Run PyTorch benchmark with specific compilation option."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"🧪 Testing: {description}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
-    # Modify the benchmark temporarily to use specific compilation option
-    benchmark_path = Path("src/benchmark.py")
+    # Get the appropriate framework name for this option
+    framework_name = modify_benchmark_for_option(option_name)
 
-    # Run the benchmark
+    # Run the benchmark using benchmark_v2.py
     cmd = [
-        "uv", "run", str(benchmark_path),
-        "--framework", "pytorch",
-        "--model-type", "llama",
-        "--model-path", str(Path.home() / "models/llama3-1b-instruct/"),
-        "--iterations", str(iterations)
+        "uv",
+        "run",
+        "src/benchmark_v2.py",
+        "--framework",
+        framework_name,
+        "--model-id",
+        "llama3-1b",
+        "--model-path",
+        str(Path.home() / "models/llama3-1b-instruct/"),
+        "--iterations",
+        str(iterations),
     ]
 
     start_time = time.time()
@@ -41,7 +48,7 @@ def run_pytorch_benchmark_with_option(option_name, description, iterations=10):
 
         if result.returncode == 0:
             # Parse the output to extract performance metrics
-            output_lines = result.stdout.split('\n')
+            output_lines = result.stdout.split("\n")
 
             # Look for throughput metrics
             avg_throughput = None
@@ -66,7 +73,7 @@ def run_pytorch_benchmark_with_option(option_name, description, iterations=10):
                 "peak_throughput": peak_throughput,
                 "steady_state_throughput": steady_state_throughput,
                 "total_time": total_time,
-                "output": result.stdout
+                "output": result.stdout,
             }
         print(f"❌ Benchmark failed with return code {result.returncode}")
         print("STDERR:", result.stderr)
@@ -75,7 +82,7 @@ def run_pytorch_benchmark_with_option(option_name, description, iterations=10):
             "description": description,
             "success": False,
             "error": result.stderr,
-            "total_time": end_time - start_time
+            "total_time": end_time - start_time,
         }
 
     except subprocess.TimeoutExpired:
@@ -85,91 +92,35 @@ def run_pytorch_benchmark_with_option(option_name, description, iterations=10):
             "description": description,
             "success": False,
             "error": "Timeout",
-            "total_time": 300
+            "total_time": 300,
         }
     except Exception as e:
         print(f"❌ Benchmark failed with exception: {e}")
-        return {
-            "option": option_name,
-            "description": description,
-            "success": False,
-            "error": str(e),
-            "total_time": 0
-        }
+        return {"option": option_name, "description": description, "success": False, "error": str(e), "total_time": 0}
+
 
 def modify_benchmark_for_option(option_name):
-    """Temporarily modify benchmark.py to use specific compilation option."""
-    benchmark_path = Path("src/benchmark.py")
+    """Map compilation option to framework name for benchmark_v2.py."""
+    # Map compilation options to framework names in benchmark_v2.py
+    option_to_framework = {
+        "no_compile": "pytorch-unoptimized",
+        "aot_eager": "pytorch-aot_eager",
+        "eager": "pytorch-eager",
+        "inductor": "pytorch-inductor",
+        "inductor_reduce_overhead": "pytorch-inductor",
+    }
 
-    # Read the current file
-    with open(benchmark_path) as f:
-        content = f.read()
+    return option_to_framework.get(option_name, "pytorch-inductor")
 
-    # Create backup
-    backup_path = benchmark_path.with_suffix('.py.backup')
-    with open(backup_path, 'w') as f:
-        f.write(content)
-
-    # Modify based on option
-    if option_name == "no_compile":
-        # Disable compilation
-        modified_content = content.replace(
-            'use_compile = kwargs.get("use_compile", True)',
-            'use_compile = False  # Forced off for testing'
-        )
-    elif option_name == "aot_eager":
-        # Force aot_eager only
-        modified_content = content.replace(
-            'backends = [\n                    ("aot_eager", "default"),\n                    ("eager", "eager"),\n                    ("inductor", "default"),\n                ]',
-            'backends = [("aot_eager", "default")]'
-        )
-    elif option_name == "eager":
-        # Force eager only
-        modified_content = content.replace(
-            'backends = [\n                    ("aot_eager", "default"),\n                    ("eager", "eager"),\n                    ("inductor", "default"),\n                ]',
-            'backends = [("eager", "eager")]'
-        )
-    elif option_name == "inductor":
-        # Force inductor only
-        modified_content = content.replace(
-            'backends = [\n                    ("aot_eager", "default"),\n                    ("eager", "eager"),\n                    ("inductor", "default"),\n                ]',
-            'backends = [("inductor", "default")]'
-        )
-    elif option_name == "inductor_reduce_overhead":
-        # Force inductor with reduce-overhead
-        modified_content = content.replace(
-            'model = torch.compile(model, mode="reduce-overhead", dynamic=True, fullgraph=False)',
-            'model = torch.compile(model, backend="inductor", mode="reduce-overhead", dynamic=True, fullgraph=False)'
-        ).replace(
-            'backends = [\n                    ("aot_eager", "default"),\n                    ("eager", "eager"),\n                    ("inductor", "default"),\n                ]',
-            'backends = [("inductor", "reduce-overhead")]'
-        )
-    else:
-        modified_content = content
-
-    # Write modified file
-    with open(benchmark_path, 'w') as f:
-        f.write(modified_content)
-
-    return backup_path
 
 def restore_benchmark(backup_path):
-    """Restore original benchmark.py from backup."""
-    benchmark_path = Path("src/benchmark.py")
+    """No-op function since we no longer modify files."""
 
-    if backup_path.exists():
-        with open(backup_path) as f:
-            content = f.read()
-
-        with open(benchmark_path, 'w') as f:
-            f.write(content)
-
-        backup_path.unlink()  # Delete backup
 
 def main():
     """Run compilation option comparison."""
     print("🚀 PyTorch Compilation Options Benchmark")
-    print("="*60)
+    print("=" * 60)
     print("Testing different torch.compile backends to find optimal performance")
 
     results = []
@@ -178,31 +129,23 @@ def main():
     for option_name, description in COMPILATION_OPTIONS:
         print(f"\n🔄 Preparing to test: {description}")
 
-        # Modify benchmark for this option
-        backup_path = modify_benchmark_for_option(option_name)
+        # Run the benchmark
+        result = run_pytorch_benchmark_with_option(option_name, description)
+        results.append(result)
 
-        try:
-            # Run the benchmark
-            result = run_pytorch_benchmark_with_option(option_name, description)
-            results.append(result)
-
-            # Show immediate result
-            if result["success"]:
-                print(f"✅ {description}: {result['steady_state_throughput']:.1f} tok/s (steady-state)")
-            else:
-                print(f"❌ {description}: Failed - {result.get('error', 'Unknown error')}")
-
-        finally:
-            # Always restore the original file
-            restore_benchmark(backup_path)
+        # Show immediate result
+        if result["success"]:
+            print(f"✅ {description}: {result['steady_state_throughput']:.1f} tok/s (steady-state)")
+        else:
+            print(f"❌ {description}: Failed - {result.get('error', 'Unknown error')}")
 
         # Brief pause between tests
         time.sleep(2)
 
     # Analysis and reporting
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("📊 COMPILATION OPTIONS COMPARISON")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     successful_results = [r for r in results if r["success"]]
 
@@ -243,6 +186,7 @@ def main():
             print(f"   Improvement over no compilation: {improvement:.1f}x faster")
 
     print(f"\n💡 Recommendation: Use '{best_result['option']}' for best PyTorch performance")
+
 
 if __name__ == "__main__":
     main()

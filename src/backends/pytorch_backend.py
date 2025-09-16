@@ -64,10 +64,7 @@ class RoPE(nn.Module):
         device = x.device
         dtype = x.dtype
 
-        if isinstance(pos, int):
-            pos = torch.tensor([pos], device=device, dtype=torch.long)
-        else:
-            pos = pos.to(device)
+        pos = torch.tensor([pos], device=device, dtype=torch.long) if isinstance(pos, int) else pos.to(device)
 
         # Get frequencies for positions
         freqs = self.freqs.to(device)
@@ -82,7 +79,7 @@ class RoPE(nn.Module):
         sin = sin[:, None, :]  # [seq_len, 1, dim//2]
 
         # Split x into pairs for rotation
-        x1 = x[..., ::2]   # Even indices
+        x1 = x[..., ::2]  # Even indices
         x2 = x[..., 1::2]  # Odd indices
 
         # Apply rotation
@@ -125,10 +122,7 @@ class Attention(nn.Module):
         v = self.wv(x).view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
 
         # Ensure position is on the same device
-        if isinstance(pos, int):
-            pos = torch.tensor([pos], device=device, dtype=torch.long)
-        else:
-            pos = pos.to(device)
+        pos = torch.tensor([pos], device=device, dtype=torch.long) if isinstance(pos, int) else pos.to(device)
 
         # Apply RoPE
         q = self.rope(q, pos)
@@ -149,12 +143,12 @@ class Attention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
 
-        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim**0.5)
 
         # Apply causal mask for training/prefill
         if seq_len > 1:
             mask = torch.triu(torch.ones(seq_len, scores.size(-1), device=scores.device), diagonal=1)
-            scores = scores.masked_fill(mask.bool(), float('-inf'))
+            scores = scores.masked_fill(mask.bool(), float("-inf"))
 
         # Apply temperature scaling
         if temperature != 1.0 and not torch.isnan(torch.tensor(temperature)):
@@ -247,7 +241,7 @@ class PyTorchLLaMA(nn.Module):
             # Apply top-k filtering
             if top_k is not None and top_k > 0:
                 top_k_logits, top_k_indices = torch.topk(logits, k=min(top_k, logits.size(-1)))
-                logits = torch.full_like(logits, float('-inf'))
+                logits = torch.full_like(logits, float("-inf"))
                 logits.scatter_(-1, top_k_indices, top_k_logits)
 
             # Apply top-p filtering
@@ -260,8 +254,10 @@ class PyTorchLLaMA(nn.Module):
                 sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
                 sorted_indices_to_remove[..., 0] = False
 
-                indices_to_remove = sorted_indices_to_remove.scatter(dim=-1, index=sorted_indices, src=sorted_indices_to_remove)
-                logits = logits.masked_fill(indices_to_remove, float('-inf'))
+                indices_to_remove = sorted_indices_to_remove.scatter(
+                    dim=-1, index=sorted_indices, src=sorted_indices_to_remove
+                )
+                logits = logits.masked_fill(indices_to_remove, float("-inf"))
 
             # Sample from the distribution
             probs = F.softmax(logits, dim=-1)
@@ -288,7 +284,7 @@ class PyTorchTokenizer:
         self.stop_tokens = self._tokenizer.stop_tokens
         # Use the first stop token as eos_id for compatibility
         self.eos_id = next(iter(self.stop_tokens))
-        self.pad_id = getattr(self._tokenizer, 'pad_id', self.eos_id)
+        self.pad_id = getattr(self._tokenizer, "pad_id", self.eos_id)
         self.special_tokens = self._tokenizer.special_tokens
 
     def encode(self, text: str) -> list[int]:
@@ -358,7 +354,7 @@ def main():
     if args.half:
         model = model.half()
 
-    if args.compile and hasattr(torch, 'compile'):
+    if args.compile and hasattr(torch, "compile"):
         model = torch.compile(model)
 
     # Load weights if model path provided
@@ -369,7 +365,9 @@ def main():
             load_pytorch_weights_from_tinygrad(model, gguf_files[0])
 
     # Load tokenizer
-    tokenizer_path = args.model / "tokenizer.model" if args.model else Path.home() / "models/llama3-1b-instruct/tokenizer.model"
+    tokenizer_path = (
+        args.model / "tokenizer.model" if args.model else Path.home() / "models/llama3-1b-instruct/tokenizer.model"
+    )
     tokenizer = PyTorchTokenizer(str(tokenizer_path))
 
     if args.benchmark:
@@ -409,7 +407,7 @@ def main():
 
         while True:
             user_input = input("User: ")
-            if user_input.lower() == 'quit':
+            if user_input.lower() == "quit":
                 break
 
             # Simple generation (not implementing full chat format for brevity)
@@ -427,7 +425,7 @@ def main():
                         last_token = torch.tensor([[generated_tokens[-1]]], device=device, dtype=torch.long)
                         output = model(last_token, pos=len(tokens) + i, temperature=0.85)
 
-                    next_token = output.item() if hasattr(output, 'item') else int(output[0])
+                    next_token = output.item() if hasattr(output, "item") else int(output[0])
                     generated_tokens.append(next_token)
 
                     if next_token in tokenizer.stop_tokens:

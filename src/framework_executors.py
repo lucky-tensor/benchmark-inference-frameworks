@@ -52,17 +52,22 @@ class TinyGradExecutor(FrameworkExecutor):
     def prepare_input(self, bench_run: BenchRun) -> tuple[Any, int]:
         """Prepare input for TinyGrad inference."""
         from backends.tinygrad_backend import prepare_tinygrad_input
+
         return prepare_tinygrad_input(bench_run.model_instance, bench_run.tokenizer_instance)
 
     def run_inference(self, bench_run: BenchRun, input_data: Any, start_pos: int) -> Any:
         """Run TinyGrad inference."""
         from backends.tinygrad_backend import run_tinygrad_inference
-        print(f"🔧 [TINYGRAD] Running TinyGrad-specific inference with model type: {type(bench_run.model_instance).__name__}")
+
+        print(
+            f"🔧 [TINYGRAD] Running TinyGrad-specific inference with model type: {type(bench_run.model_instance).__name__}"
+        )
         return run_tinygrad_inference(bench_run.model_instance, input_data, start_pos)
 
     def get_model_info(self, bench_run: BenchRun) -> dict[str, Any]:
         """Get TinyGrad model information."""
         from backends.tinygrad_backend import get_tinygrad_model_info
+
         return get_tinygrad_model_info(bench_run.model_instance)
 
     def cleanup(self, bench_run: BenchRun) -> None:
@@ -81,9 +86,10 @@ class TinyGradExecutor(FrameworkExecutor):
         # TinyGrad-specific cleanup
         try:
             from tinygrad import Device
-            if hasattr(Device, 'DEFAULT') and hasattr(Device.DEFAULT, 'synchronize'):
+
+            if hasattr(Device, "DEFAULT") and hasattr(Device.DEFAULT, "synchronize"):
                 Device.DEFAULT.synchronize()
-            if hasattr(Device, 'DEFAULT') and hasattr(Device.DEFAULT, 'empty_cache'):
+            if hasattr(Device, "DEFAULT") and hasattr(Device.DEFAULT, "empty_cache"):
                 Device.DEFAULT.empty_cache()
         except Exception as e:
             print(f"   TinyGrad device cleanup failed: {e}")
@@ -125,6 +131,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         print(f"🔧 [PYTORCH-{self.variant.upper()}] Loading PyTorch-specific model implementation...")
 
         import torch
+
         print(f"🔧 [PYTORCH-{self.variant.upper()}] PyTorch version: {torch.__version__}")
 
         # Add necessary directories to path for imports
@@ -155,7 +162,9 @@ class PyTorchBaseExecutor(FrameworkExecutor):
                 load_pytorch_weights_from_tinygrad(model, weight_path)
 
         model.eval()
-        print(f"🔧 [PYTORCH-{self.variant.upper()}] Loaded model type: {type(model).__name__} from module: {type(model).__module__}")
+        print(
+            f"🔧 [PYTORCH-{self.variant.upper()}] Loaded model type: {type(model).__name__} from module: {type(model).__module__}"
+        )
         return model
 
     def compile_model(self, bench_run: BenchRun) -> None:
@@ -164,11 +173,10 @@ class PyTorchBaseExecutor(FrameworkExecutor):
             print(f"🔧 [PYTORCH-{self.variant.upper()}] Skipping compilation for unoptimized variant")
             return
 
-
         import torch
 
         model = bench_run.model_instance
-        if not hasattr(torch, 'compile'):
+        if not hasattr(torch, "compile"):
             print("⚠️  torch.compile not available, skipping compilation")
             return
 
@@ -222,6 +230,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
     def prepare_input(self, bench_run: BenchRun) -> tuple[Any, int]:
         """Prepare input for PyTorch inference."""
         import torch
+
         # Add necessary directories to path for imports
         current_dir = Path(__file__).parent
         sys.path.insert(0, str(current_dir))
@@ -263,6 +272,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
     def run_inference(self, bench_run: BenchRun, input_data: Any, start_pos: int) -> Any:
         """Run PyTorch inference."""
         import torch
+
         # Add necessary directories to path for imports
         current_dir = Path(__file__).parent
         sys.path.insert(0, str(current_dir))
@@ -297,7 +307,9 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         # Run inference
         with torch.no_grad():
             input_tensor = torch.tensor([[input_data]], device=device, dtype=torch.long)
-            print(f"🔧 [PYTORCH-{self.variant.upper()}] Running PyTorch {self.variant} inference with model type: {type(model).__name__}")
+            print(
+                f"🔧 [PYTORCH-{self.variant.upper()}] Running PyTorch {self.variant} inference with model type: {type(model).__name__}"
+            )
             tok = model(input_tensor, start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
 
             if hasattr(tok, "item"):
@@ -344,7 +356,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
 
         # Clear model references
         model = bench_run.model_instance
-        if model and hasattr(model, 'cpu'):
+        if model and hasattr(model, "cpu"):
             model.cpu()
 
         bench_run.model_instance = None
@@ -394,7 +406,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
             inductor_config.fallback_random = True
 
             # Disable CUDAGraphs which can cause device issues
-            if hasattr(inductor_config.triton, 'cudagraphs'):
+            if hasattr(inductor_config.triton, "cudagraphs"):
                 inductor_config.triton.cudagraphs = False
                 print("   ✓ Disabled CUDAGraphs for stability")
 
@@ -403,12 +415,13 @@ class PyTorchBaseExecutor(FrameworkExecutor):
 
         # Device affinity settings
         import torch
+
         if torch.cuda.is_available():
             # Ensure consistent device placement
             torch.backends.cudnn.deterministic = False  # Allow cudnn optimizations
-            torch.backends.cudnn.benchmark = True      # Enable cudnn benchmarking
+            torch.backends.cudnn.benchmark = True  # Enable cudnn benchmarking
             # Enable TensorFloat32 for better performance
-            torch.set_float32_matmul_precision('high')
+            torch.set_float32_matmul_precision("high")
 
 
 # Specific PyTorch variant executors
