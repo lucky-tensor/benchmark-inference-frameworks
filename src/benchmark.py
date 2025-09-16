@@ -92,86 +92,37 @@ class FrameworkBackend(ABC):
 
 
 class TinyGradBackend(FrameworkBackend):
-    """TinyGrad framework implementation."""
+    """TinyGrad framework implementation using separated backend."""
+
+    def __init__(self):
+        pass
 
     def get_name(self) -> str:
         return "TinyGrad"
 
     def load_model(self, model_size: str, model_path: Path | None = None, **kwargs) -> Any:
-        from tinygrad import Device
-
-        from llama.model_config import build_transformer, resolve_model_path
-
-        # Handle directory paths containing GGUF files
-        if model_path and model_path.is_dir():
-            # Look for GGUF files in the directory
-            gguf_files = list(model_path.glob("*.gguf"))
-            if gguf_files:
-                resolved_path = gguf_files[0]  # Use the first GGUF file found
-            else:
-                # Fall back to resolve_model_path
-                resolved_path = resolve_model_path(model_path, model_size, False)
-        else:
-            # Resolve model path normally
-            resolved_path = resolve_model_path(model_path, model_size, False)
-
-        # Get device
-        shard = kwargs.get("shard", 1)
-        device = tuple(f"{Device.DEFAULT}:{i}" for i in range(shard)) if shard > 1 else Device.DEFAULT
-
-        # Build model
-        return build_transformer(resolved_path, model_size=model_size, quantize=kwargs.get("quantize"), device=device)
+        from backends.tinygrad_backend import get_tinygrad_model
+        return get_tinygrad_model(model_size, model_path, **kwargs)
 
     def load_tokenizer(self, tokenizer_path: Path) -> Any:
-        from common.tokenizer import Tokenizer
-
-        return Tokenizer(str(tokenizer_path))
+        from backends.tinygrad_backend import get_tinygrad_tokenizer
+        return get_tinygrad_tokenizer(tokenizer_path)
 
     def prepare_input(self, model: Any, tokenizer: Any) -> tuple[Any, int]:
-        from common.generation import encode_message, encode_role, prefill
-
-        # Prepare input tokens (same as TinyGrad benchmark)
-        toks = [tokenizer.bos_id, *encode_message("user", "Hello.", tokenizer), *encode_role("assistant", tokenizer)]
-
-        # Prefill the model
-        start_pos = prefill(model, toks[:-1])
-
-        return toks[-1], start_pos
+        from backends.tinygrad_backend import prepare_tinygrad_input
+        return prepare_tinygrad_input(model, tokenizer)
 
     def run_inference(self, model: Any, input_data: Any, start_pos: int) -> Any:
-        from tinygrad import GlobalCounters, Tensor
-
-        from common.generation import ALPHA_F, ALPHA_P, TEMPERATURE, TOP_K, TOP_P
-
-        GlobalCounters.reset()
-
-        # Store model for prepare_input (hacky but needed for prefill)
-        self._current_model = model
-
-        device = model.tok_embeddings.weight.device if hasattr(model.tok_embeddings.weight, "device") else "cuda"
-
-        tok = model(Tensor([[input_data]], device=device), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
-
-        return tok.item()
+        from backends.tinygrad_backend import run_tinygrad_inference
+        return run_tinygrad_inference(model, input_data, start_pos)
 
     def get_model_info(self, model: Any) -> dict[str, Any]:
-        from tinygrad.nn.state import get_parameters
-
-        params = get_parameters(model)
-        total_params = sum(x.numel() for x in params)
-        param_bytes = sum(x.uop.size * x.dtype.itemsize for x in params)
-
-        return {
-            "total_parameters": total_params,
-            "loaded_parameters": total_params,
-            "model_memory_gb": param_bytes / (1024**3),
-            "precision": "mixed",  # TinyGrad uses mixed precision
-        }
+        from backends.tinygrad_backend import get_tinygrad_model_info
+        return get_tinygrad_model_info(model)
 
     def get_device_info(self) -> str:
-        from tinygrad import Device
-
-        return str(Device.DEFAULT)
+        from backends.tinygrad_backend import get_tinygrad_device_info
+        return get_tinygrad_device_info()
 
     def cleanup(self, model: Any, tokenizer: Any) -> None:
         # TinyGrad cleanup if needed
@@ -179,28 +130,27 @@ class TinyGradBackend(FrameworkBackend):
 
 
 class PyTorchBackend(FrameworkBackend):
-    """PyTorch framework implementation."""
+    """PyTorch framework implementation using separated backend."""
+
+    def __init__(self):
+        self._prefill_tokens = None
+        self._prefilled = False
 
     def get_name(self) -> str:
         return "PyTorch"
 
     def load_model(self, model_size: str, model_path: Path | None = None, **kwargs) -> Any:
-        # Import PyTorch backend
-        import importlib.util
-
         import torch
 
-        spec = importlib.util.spec_from_file_location("pytorch_backend", "src/pytorch-backend.py")
-        pytorch_backend = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(pytorch_backend)
+        from backends.pytorch_backend import MODEL_CONFIGS, PyTorchLLaMA, load_pytorch_weights_from_tinygrad
 
         # Create model
-        config = pytorch_backend.MODEL_CONFIGS[model_size]
-        model = pytorch_backend.PyTorchLLaMA(**config)
+        config = MODEL_CONFIGS[model_size]
+        model = PyTorchLLaMA(**config)
 
         # Apply same optimizations as TinyGrad for fair comparison
         use_half = kwargs.get("use_half", True)  # Match TinyGrad mixed precision
-        use_compile = kwargs.get("use_compile", True)  # Match TinyGrad JIT
+        use_compile = kwargs.get("use_compile", False)  # Disabled by default due to CUDA graph issues
 
         if use_half:
             model = model.half()  # Use float16 like TinyGrad mixed precision
@@ -211,7 +161,16 @@ class PyTorchBackend(FrameworkBackend):
 
         if use_compile and hasattr(torch, 'compile'):
             print("Applying torch.compile for fair comparison with TinyGrad JIT...")
-            model = torch.compile(model)
+            # Clear CUDA cache before compilation to avoid resource conflicts
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+            try:
+                # Try more conservative compilation settings
+                model = torch.compile(model, mode="reduce-overhead", dynamic=False, fullgraph=False)
+            except Exception as e:
+                print(f"Warning: torch.compile failed ({e}), falling back to eager mode")
+                use_compile = False
 
         model.eval()
 
@@ -220,18 +179,13 @@ class PyTorchBackend(FrameworkBackend):
             gguf_files = list(model_path.glob("*.gguf"))
             if gguf_files:
                 weight_path = gguf_files[0]
-                pytorch_backend.load_pytorch_weights_from_tinygrad(model, weight_path)
+                load_pytorch_weights_from_tinygrad(model, weight_path)
 
         return model
 
     def load_tokenizer(self, tokenizer_path: Path) -> Any:
-        import importlib.util
-
-        spec = importlib.util.spec_from_file_location("pytorch_backend", "src/pytorch-backend.py")
-        pytorch_backend = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(pytorch_backend)
-
-        return pytorch_backend.PyTorchTokenizer(str(tokenizer_path))
+        from backends.pytorch_backend import PyTorchTokenizer
+        return PyTorchTokenizer(str(tokenizer_path))
 
     def prepare_input(self, model: Any, tokenizer: Any) -> tuple[Any, int]:
         # Prepare input (matching PyTorch backend)
@@ -272,9 +226,19 @@ class PyTorchBackend(FrameworkBackend):
         device = next(model.parameters()).device
 
         # First iteration needs prefill
-        if not hasattr(self, "_prefilled"):
+        if not self._prefilled:
+            # Ensure CUDA is properly synchronized before first call
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+
             with torch.no_grad():
-                _ = model(self._prefill_tokens, 0, temperature=float("nan"))
+                # Use normal temperature for prefill, not NaN
+                _ = model(self._prefill_tokens, 0, temperature=0.85)
+
+            # Synchronize after first compilation/execution
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+
             self._prefilled = True
 
         # Run inference
@@ -514,7 +478,7 @@ def print_benchmark_results(result: BenchmarkResult) -> None:
     if result.quantization:
         print(f"Quantization: {result.quantization}")
 
-    print(f"\n📥 Model Loading:")
+    print("\n📥 Model Loading:")
     print(f"  Model load time:     {result.model_load_time:6.2f}s (model + tokenizer)")
 
     print("\n❄️  Cold Start Metrics:")
@@ -728,8 +692,8 @@ Examples:
     # Fairness options for PyTorch
     parser.add_argument("--fair-comparison", action="store_true", default=True,
                         help="Enable fair comparison mode (PyTorch uses same precision and optimizations as TinyGrad)")
-    parser.add_argument("--pytorch-no-compile", action="store_true",
-                        help="Disable torch.compile in PyTorch (default: enabled for fair comparison)")
+    parser.add_argument("--pytorch-compile", action="store_true",
+                        help="Enable torch.compile in PyTorch (default: disabled due to CUDA issues)")
     parser.add_argument("--pytorch-no-half", action="store_true",
                         help="Disable half precision in PyTorch (default: enabled for fair comparison)")
 
@@ -774,7 +738,7 @@ Examples:
             if backend.get_name() == "PyTorch" and args.fair_comparison:
                 fairness_kwargs.update({
                     "use_half": not args.pytorch_no_half,
-                    "use_compile": not args.pytorch_no_compile,
+                    "use_compile": args.pytorch_compile,
                 })
 
             result = run_benchmark(
