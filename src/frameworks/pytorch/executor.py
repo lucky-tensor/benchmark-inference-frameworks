@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from benchmark_classes import BenchRun, FrameworkExecutor
+from benchmark import BenchRun, FrameworkExecutor
 
 
 class PyTorchBaseExecutor(FrameworkExecutor):
@@ -41,7 +41,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         sys.path.insert(0, str(current_dir.parent.parent))
         sys.path.insert(0, str(current_dir.parent.parent / "llama"))  # For extra module imports
 
-        from backends.pytorch_backend import MODEL_CONFIGS, PyTorchLLaMA, load_pytorch_weights_from_gguf
+        from .backend import MODEL_CONFIGS, PyTorchLLaMA, load_pytorch_weights_from_gguf
 
         # Create model
         model_size = self._extract_model_size(bench_run.model_id)
@@ -115,7 +115,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         sys.path.insert(0, str(current_dir))
         sys.path.insert(0, str(current_dir.parent.parent))
         sys.path.insert(0, str(current_dir.parent.parent / "llama"))  # For extra module imports
-        from backends.pytorch_backend import PyTorchTokenizer
+        from .backend import PyTorchTokenizer
 
         # Determine tokenizer path
         if bench_run.model_path and bench_run.model_path.is_dir():

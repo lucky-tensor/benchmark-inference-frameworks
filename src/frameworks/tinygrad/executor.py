@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from benchmark_classes import BenchRun, FrameworkExecutor
+from benchmark import BenchRun, FrameworkExecutor
 
 
 class TinyGradExecutor(FrameworkExecutor):

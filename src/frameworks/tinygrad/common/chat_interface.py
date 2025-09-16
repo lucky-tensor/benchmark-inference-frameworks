@@ -11,7 +11,6 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Union
 
 
 class MessageRole(Enum):
@@ -72,7 +71,7 @@ class ChatMessage:
 
     role: MessageRole
     content: str
-    stats: Union[ResponseStats, None] = None  # Statistics for generated responses
+    stats: ResponseStats | None = None  # Statistics for generated responses
 
     def __post_init__(self):
         if isinstance(self.role, str):
@@ -84,17 +83,17 @@ class ChatSession:
     """Represents a complete chat conversation"""
 
     messages: list[ChatMessage]
-    system_prompt: Union[str, None] = None
+    system_prompt: str | None = None
 
-    def add_message(self, role: Union[MessageRole, str], content: str, stats: Union[ResponseStats, None] = None):
+    def add_message(self, role: MessageRole | str, content: str, stats: ResponseStats | None = None):
         """Add a message to the conversation"""
         self.messages.append(ChatMessage(role, content, stats))
 
-    def get_last_message(self) -> Union[ChatMessage, None]:
+    def get_last_message(self) -> ChatMessage | None:
         """Get the most recent message"""
         return self.messages[-1] if self.messages else None
 
-    def get_last_response_stats(self) -> Union[ResponseStats, None]:
+    def get_last_response_stats(self) -> ResponseStats | None:
         """Get statistics from the last assistant response"""
         for message in reversed(self.messages):
             if message.role == MessageRole.ASSISTANT and message.stats:
@@ -306,7 +305,7 @@ def create_chat_interface(model_type: str, tokenizer) -> ChatInterface:
 
 
 # Convenience functions for common use cases
-def create_simple_session(user_message: str, system_prompt: Union[str, None] = None) -> ChatSession:
+def create_simple_session(user_message: str, system_prompt: str | None = None) -> ChatSession:
     """Create a simple chat session with one user message"""
     session = ChatSession([], system_prompt)
     session.add_message(MessageRole.USER, user_message)
