@@ -298,8 +298,8 @@ def load_pytorch_weights_from_tinygrad(model: PyTorchLLaMA, gguf_path: Path):
     """Load GGUF weights into PyTorch model by converting from TinyGrad format."""
     from pathlib import Path
 
-    # Import TinyGrad modules
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    # Import TinyGrad modules from new location
+    sys.path.insert(0, str(Path(__file__).parent.parent / "frameworks" / "tinygrad"))
     from llama.model_config import build_transformer
 
     # Load TinyGrad model

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from benchmark_classes import BenchmarkSuite
-from framework_executors import create_executor
+from framework_factory import create_executor
 
 
 def main():
