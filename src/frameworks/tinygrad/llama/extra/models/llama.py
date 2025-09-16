@@ -1,6 +1,6 @@
 import collections
 import math
-from typing import Any
+from typing import Any, Union
 
 from tinygrad import Device, Tensor, TinyJit, Variable, dtypes, nn
 from tinygrad.helpers import getenv
@@ -44,7 +44,7 @@ def repeat_kv(x: Tensor, n_rep: int) -> Tensor:
 
 
 class Attention:
-    def __init__(self, dim, n_heads, n_kv_heads=None, max_context=0, linear=nn.Linear, qk_norm: float | None = None):
+    def __init__(self, dim, n_heads, n_kv_heads=None, max_context=0, linear=nn.Linear, qk_norm: Union[float, None] = None):
         self.n_heads = n_heads
         self.n_kv_heads = (
             n_kv_heads if n_kv_heads is not None else n_heads
@@ -61,7 +61,7 @@ class Attention:
         self.q_norm = nn.RMSNorm(dim, qk_norm) if qk_norm is not None else None
         self.k_norm = nn.RMSNorm(dim, qk_norm) if qk_norm is not None else None
 
-    def __call__(self, x: Tensor, start_pos: Variable | int, freqs_cis: Tensor, mask: Tensor | None = None) -> Tensor:
+    def __call__(self, x: Tensor, start_pos: Union[Variable, int], freqs_cis: Tensor, mask: Union[Tensor, None] = None) -> Tensor:
         if getenv("WQKV"):
             if not hasattr(self, "wqkv"):
                 self.wqkv = Tensor.cat(self.wq.weight, self.wk.weight, self.wv.weight)
@@ -140,7 +140,7 @@ class TransformerBlock:
         self.attention_norm = nn.RMSNorm(dim, norm_eps)
         self.ffn_norm = nn.RMSNorm(dim, norm_eps)
 
-    def __call__(self, x: Tensor, start_pos: Variable | int, freqs_cis: Tensor, mask: Tensor | None):
+    def __call__(self, x: Tensor, start_pos: Union[Variable, int], freqs_cis: Tensor, mask: Union[Tensor, None]):
         h = x + self.attention(self.attention_norm(x), start_pos, freqs_cis, mask)
         return (h + self.feed_forward(self.ffn_norm(h))).contiguous().contiguous_backward()
 
@@ -251,7 +251,7 @@ class Transformer:
     def forward(
         self,
         tokens: Tensor,
-        start_pos: Variable | int,
+        start_pos: Union[Variable, int],
         temperature: float,
         top_k: int,
         top_p: float,

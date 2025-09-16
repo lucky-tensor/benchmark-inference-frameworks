@@ -8,9 +8,10 @@ import argparse
 import sys
 import time
 from pathlib import Path
+from typing import Union
 
 
-def get_tinygrad_model(model_size: str, model_path: Path | None = None, **kwargs):
+def get_tinygrad_model(model_size: str, model_path: Union[Path, None] = None, **kwargs):
     """Load TinyGrad model with specified configuration."""
     from tinygrad import Device
 
@@ -96,7 +97,7 @@ def get_tinygrad_device_info():
     return str(Device.DEFAULT)
 
 
-def run_tinygrad_benchmark(model_size: str = "1B", model_path: Path | None = None, iterations: int = 20, **kwargs):
+def run_tinygrad_benchmark(model_size: str = "1B", model_path: Union[Path, None] = None, iterations: int = 20, **kwargs):
     """Run standalone TinyGrad benchmark."""
     print("🚀 Running TinyGrad Benchmark")
     print("=" * 50)

@@ -5,6 +5,7 @@ Model configuration and loading utilities.
 import json
 import os
 from pathlib import Path
+from typing import Union
 
 from tinygrad import Context, Device, Tensor, dtypes, nn
 from tinygrad.helpers import fetch
@@ -105,7 +106,7 @@ def build_transformer(
     load_weights_flag=True,
 ):
     from common.quantization import Int8Embedding, Int8Linear, NF4Linear
-    from extra.models.llama import Transformer
+    from .extra.models.llama import Transformer
 
     if quantize == "int8":
         linear, embedding, quantize_embeds = Int8Linear, Int8Embedding, True
@@ -176,7 +177,7 @@ def build_transformer(
     return model
 
 
-def find_model_in_default_dir(size: str) -> Path | None:
+def find_model_in_default_dir(size: str) -> Union[Path, None]:
     """Look for model files in ~/models directory based on size"""
     models_dir = Path.home() / "models"
 
@@ -256,7 +257,7 @@ def download_model(size: str) -> Path:
     raise ValueError(f"Unsupported model size: {size}")
 
 
-def resolve_model_path(model_path: Path | None, size: str, download: bool) -> Path:
+def resolve_model_path(model_path: Union[Path, None], size: str, download: bool) -> Path:
     """Resolve model path, downloading if necessary"""
     if not model_path and not download:
         found_model = find_model_in_default_dir(size)
