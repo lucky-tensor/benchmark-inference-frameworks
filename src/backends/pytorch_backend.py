@@ -224,7 +224,7 @@ class PyTorchLLaMA(nn.Module):
         if isinstance(module, nn.Linear) or isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, tokens, pos, temperature=1.0, top_k=None, top_p=None, alpha_f=None, alpha_p=None):
+    def forward(self, tokens, pos, temperature=1.0, top_k=None, top_p=None, _alpha_f=None, _alpha_p=None):
         # Embed tokens
         x = self.tok_embeddings(tokens)
 

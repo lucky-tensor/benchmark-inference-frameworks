@@ -8,7 +8,7 @@ that implements the FrameworkExecutor interface.
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from benchmark_classes import BenchRun, FrameworkExecutor
 
@@ -49,7 +49,7 @@ class TinyGradExecutor(FrameworkExecutor):
 
         return get_tinygrad_tokenizer(tokenizer_path)
 
-    def prepare_input(self, bench_run: BenchRun) -> Tuple[Any, int]:
+    def prepare_input(self, bench_run: BenchRun) -> tuple[Any, int]:
         """Prepare input for TinyGrad inference."""
         from backends.tinygrad_backend import prepare_tinygrad_input
         return prepare_tinygrad_input(bench_run.model_instance, bench_run.tokenizer_instance)
@@ -60,7 +60,7 @@ class TinyGradExecutor(FrameworkExecutor):
         print(f"🔧 [TINYGRAD] Running TinyGrad-specific inference with model type: {type(bench_run.model_instance).__name__}")
         return run_tinygrad_inference(bench_run.model_instance, input_data, start_pos)
 
-    def get_model_info(self, bench_run: BenchRun) -> Dict[str, Any]:
+    def get_model_info(self, bench_run: BenchRun) -> dict[str, Any]:
         """Get TinyGrad model information."""
         from backends.tinygrad_backend import get_tinygrad_model_info
         return get_tinygrad_model_info(bench_run.model_instance)
@@ -94,14 +94,13 @@ class TinyGradExecutor(FrameworkExecutor):
         """Extract model size from model ID (e.g., 'llama3-1b' -> '1B')."""
         if "-1b" in model_id.lower():
             return "1B"
-        elif "-3b" in model_id.lower():
+        if "-3b" in model_id.lower():
             return "3B"
-        elif "-7b" in model_id.lower():
+        if "-7b" in model_id.lower():
             return "7B"
-        elif "-8b" in model_id.lower():
+        if "-8b" in model_id.lower():
             return "8B"
-        else:
-            return "1B"  # Default
+        return "1B"  # Default
 
 
 class PyTorchBaseExecutor(FrameworkExecutor):
@@ -119,8 +118,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
     def get_framework_name(self) -> str:
         if self.variant == "unoptimized":
             return "pytorch-unoptimized"
-        else:
-            return f"pytorch-{self.variant}"
+        return f"pytorch-{self.variant}"
 
     def load_model(self, bench_run: BenchRun) -> Any:
         """Load PyTorch model."""
@@ -166,8 +164,8 @@ class PyTorchBaseExecutor(FrameworkExecutor):
             print(f"🔧 [PYTORCH-{self.variant.upper()}] Skipping compilation for unoptimized variant")
             return
 
+
         import torch
-        import os
 
         model = bench_run.model_instance
         if not hasattr(torch, 'compile'):
@@ -221,7 +219,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
 
         return PyTorchTokenizer(str(tokenizer_path))
 
-    def prepare_input(self, bench_run: BenchRun) -> Tuple[Any, int]:
+    def prepare_input(self, bench_run: BenchRun) -> tuple[Any, int]:
         """Prepare input for PyTorch inference."""
         import torch
         # Add necessary directories to path for imports
@@ -306,7 +304,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
                 return tok.item()
             return int(tok[0])
 
-    def get_model_info(self, bench_run: BenchRun) -> Dict[str, Any]:
+    def get_model_info(self, bench_run: BenchRun) -> dict[str, Any]:
         """Get PyTorch model information."""
         import torch
 
@@ -338,8 +336,9 @@ class PyTorchBaseExecutor(FrameworkExecutor):
 
     def cleanup(self, bench_run: BenchRun) -> None:
         """Clean up PyTorch resources."""
-        import torch
         import gc
+
+        import torch
 
         print("🧹 Cleaning up PyTorch resources...")
 
@@ -370,14 +369,13 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         """Extract model size from model ID."""
         if "-1b" in model_id.lower():
             return "1B"
-        elif "-3b" in model_id.lower():
+        if "-3b" in model_id.lower():
             return "3B"
-        elif "-7b" in model_id.lower():
+        if "-7b" in model_id.lower():
             return "7B"
-        elif "-8b" in model_id.lower():
+        if "-8b" in model_id.lower():
             return "8B"
-        else:
-            return "1B"  # Default
+        return "1B"  # Default
 
     def _configure_inductor_settings(self) -> None:
         """Configure Inductor settings for stability."""

@@ -10,7 +10,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Union
 
 
 @dataclass
@@ -22,20 +22,20 @@ class TimeLog:
     """
 
     # Core timing steps
-    model_loading: Optional[float] = None
-    model_compilation: Optional[float] = None
-    tokenizer_loading: Optional[float] = None
-    memory_clearing: Optional[float] = None
-    cold_start: Optional[float] = None
+    model_loading: Union[float, None] = None
+    model_compilation: Union[float, None] = None
+    tokenizer_loading: Union[float, None] = None
+    memory_clearing: Union[float, None] = None
+    cold_start: Union[float, None] = None
 
     # Inference timing arrays
-    iteration_times: List[float] = field(default_factory=list)
-    warmup_times: List[float] = field(default_factory=list)
-    steady_state_times: List[float] = field(default_factory=list)
+    iteration_times: list[float] = field(default_factory=list)
+    warmup_times: list[float] = field(default_factory=list)
+    steady_state_times: list[float] = field(default_factory=list)
 
     # Cleanup timing
-    framework_cleanup: Optional[float] = None
-    memory_cleanup: Optional[float] = None
+    framework_cleanup: Union[float, None] = None
+    memory_cleanup: Union[float, None] = None
 
     def start_timer(self) -> float:
         """Start a timer and return the start time."""
@@ -101,7 +101,7 @@ class BenchmarkResults:
     # Additional metrics
     warmup_improvement_factor: float = 1.0
     compilation_success: bool = True
-    error_messages: List[str] = field(default_factory=list)
+    error_messages: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -120,7 +120,7 @@ class BenchRun:
 
     # Framework specification
     framework_name: str  # e.g., "tinygrad", "pytorch-unoptimized", "pytorch-inductor"
-    framework_version: Optional[str] = None
+    framework_version: Union[str, None] = None
 
     # Benchmark configuration
     iterations: int = 20
@@ -136,28 +136,28 @@ class BenchRun:
     alpha_p: float = 0.0  # Presence penalty
 
     # Framework-specific options
-    framework_options: Dict[str, Any] = field(default_factory=dict)
+    framework_options: dict[str, Any] = field(default_factory=dict)
 
     # Results and timing (populated during execution)
     time_log: TimeLog = field(default_factory=TimeLog)
-    results: Optional[BenchmarkResults] = None
-    model_instance: Optional[Any] = None
-    tokenizer_instance: Optional[Any] = None
+    results: Union[BenchmarkResults, None] = None
+    model_instance: Union[Any, None] = None
+    tokenizer_instance: Union[Any, None] = None
 
     # Execution state
     is_executed: bool = False
-    execution_error: Optional[str] = None
+    execution_error: Union[str, None] = None
 
     def get_framework_type(self) -> str:
         """Get the base framework type (e.g., 'pytorch' from 'pytorch-inductor')."""
         return self.framework_name.split('-')[0]
 
-    def get_framework_variant(self) -> Optional[str]:
+    def get_framework_variant(self) -> Union[str, None]:
         """Get the framework variant (e.g., 'inductor' from 'pytorch-inductor')."""
         parts = self.framework_name.split('-', 1)
         return parts[1] if len(parts) > 1 else None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             'model_id': self.model_id,
@@ -190,7 +190,6 @@ class FrameworkExecutor(ABC):
     @abstractmethod
     def get_framework_name(self) -> str:
         """Return the framework name (e.g., 'pytorch-inductor')."""
-        pass
 
     @abstractmethod
     def load_model(self, bench_run: BenchRun) -> Any:
@@ -200,7 +199,6 @@ class FrameworkExecutor(ABC):
         Should update bench_run.time_log.model_loading.
         Returns the loaded model instance.
         """
-        pass
 
     @abstractmethod
     def load_tokenizer(self, bench_run: BenchRun) -> Any:
@@ -210,7 +208,6 @@ class FrameworkExecutor(ABC):
         Should update bench_run.time_log.tokenizer_loading.
         Returns the loaded tokenizer instance.
         """
-        pass
 
     @abstractmethod
     def prepare_input(self, bench_run: BenchRun) -> tuple[Any, int]:
@@ -219,7 +216,6 @@ class FrameworkExecutor(ABC):
 
         Returns (input_data, start_position).
         """
-        pass
 
     @abstractmethod
     def run_inference(self, bench_run: BenchRun, input_data: Any, start_pos: int) -> Any:
@@ -228,16 +224,14 @@ class FrameworkExecutor(ABC):
 
         Returns the next token or output.
         """
-        pass
 
     @abstractmethod
-    def get_model_info(self, bench_run: BenchRun) -> Dict[str, Any]:
+    def get_model_info(self, bench_run: BenchRun) -> dict[str, Any]:
         """
         Get information about the loaded model.
 
         Should return a dict with keys like 'total_parameters', 'model_memory_gb', etc.
         """
-        pass
 
     @abstractmethod
     def cleanup(self, bench_run: BenchRun) -> None:
@@ -246,7 +240,6 @@ class FrameworkExecutor(ABC):
 
         Should update bench_run.time_log.framework_cleanup.
         """
-        pass
 
     def compile_model(self, bench_run: BenchRun) -> None:
         """
@@ -255,7 +248,6 @@ class FrameworkExecutor(ABC):
         Default implementation does nothing. Override if framework supports compilation.
         Should update bench_run.time_log.model_compilation.
         """
-        pass
 
 
 class BenchmarkSuite:
@@ -264,8 +256,8 @@ class BenchmarkSuite:
     """
 
     def __init__(self):
-        self.bench_runs: List[BenchRun] = []
-        self.executors: Dict[str, FrameworkExecutor] = {}
+        self.bench_runs: list[BenchRun] = []
+        self.executors: dict[str, FrameworkExecutor] = {}
 
     def register_executor(self, framework_name: str, executor: FrameworkExecutor) -> None:
         """Register a framework executor."""
@@ -317,7 +309,7 @@ class BenchmarkSuite:
             bench_run.time_log.model_loading = bench_run.time_log.end_timer(start_time)
 
             # Compile model (if supported)
-            if hasattr(executor, 'compile_model') and callable(getattr(executor, 'compile_model')):
+            if hasattr(executor, 'compile_model') and callable(executor.compile_model):
                 start_time = bench_run.time_log.start_timer()
                 executor.compile_model(bench_run)
                 bench_run.time_log.model_compilation = bench_run.time_log.end_timer(start_time)
@@ -337,7 +329,7 @@ class BenchmarkSuite:
             input_data, start_pos = executor.prepare_input(bench_run)
 
             # Cold start measurement
-            print(f"\n🥶 Cold Start Measurement")
+            print("\n🥶 Cold Start Measurement")
             print("=" * 40)
             start_time = bench_run.time_log.start_timer()
             cold_start_result = executor.run_inference(bench_run, input_data, start_pos)
@@ -414,7 +406,7 @@ class BenchmarkSuite:
             print(f"❌ {bench_run.framework_name} benchmark failed: {e}")
             raise
 
-    def execute_all(self) -> List[BenchmarkResults]:
+    def execute_all(self) -> list[BenchmarkResults]:
         """Execute all benchmark runs in the suite."""
         results = []
         for bench_run in self.bench_runs:
@@ -427,7 +419,7 @@ class BenchmarkSuite:
                     continue
         return results
 
-    def get_executed_runs(self) -> List[BenchRun]:
+    def get_executed_runs(self) -> list[BenchRun]:
         """Get all successfully executed benchmark runs."""
         return [run for run in self.bench_runs if run.is_executed and run.results is not None]
 
@@ -438,7 +430,7 @@ class BenchmarkSuite:
             print("Need at least 2 executed benchmarks for comparison")
             return
 
-        print(f"\n📊 BENCHMARK COMPARISON")
+        print("\n📊 BENCHMARK COMPARISON")
         print("=" * 80)
         print(f"{'Framework':<20} {'Model':<12} {'Throughput (tok/s)':<18} {'Cold Start (ms)':<15}")
         print("-" * 80)

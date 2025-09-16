@@ -124,14 +124,13 @@ class TinyGradBackend(FrameworkBackend):
         from backends.tinygrad_backend import get_tinygrad_device_info
         return get_tinygrad_device_info()
 
-    def cleanup(self, model: Any, tokenizer: Any) -> None:
+    def cleanup(self, _model: Any, _tokenizer: Any) -> None:
         import gc
 
         print("🧹 Cleaning up TinyGrad resources...")
 
-        # Clear model and tokenizer references
-        del model
-        del tokenizer
+        # Clear model and tokenizer references (parameters not used - just for interface compliance)
+        # del model, tokenizer - not needed as they're not referenced
 
         # Force garbage collection
         gc.collect()
@@ -320,6 +319,7 @@ class PyTorchBackend(FrameworkBackend):
     def run_inference(self, model: Any, input_data: Any, start_pos: int) -> Any:
         import torch
 
+        # Get device information
         device = next(model.parameters()).device
 
         # First iteration needs prefill
@@ -327,7 +327,6 @@ class PyTorchBackend(FrameworkBackend):
             print("🔥 Starting first inference (JIT compilation will occur)...")
 
             # Debug device information
-            device = next(model.parameters()).device
             print(f"   Model device: {device}")
             print(f"   Prefill tokens device: {self._prefill_tokens.device}")
             print(f"   Prefill tokens shape: {self._prefill_tokens.shape}")
@@ -407,7 +406,7 @@ class PyTorchBackend(FrameworkBackend):
             return f"cuda:{torch.cuda.current_device()}"
         return "cpu"
 
-    def cleanup(self, model: Any, tokenizer: Any) -> None:
+    def cleanup(self, model: Any, _tokenizer: Any) -> None:
         import gc
 
         import torch
@@ -418,7 +417,7 @@ class PyTorchBackend(FrameworkBackend):
         if hasattr(model, 'cpu'):
             model.cpu()
         del model
-        del tokenizer
+        # tokenizer parameter not used - just for interface compliance
 
         # Reset backend state
         self._prefill_tokens = None

@@ -4,7 +4,6 @@ Test different PyTorch compilation options to find the fastest one.
 """
 
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -69,19 +68,18 @@ def run_pytorch_benchmark_with_option(option_name, description, iterations=10):
                 "total_time": total_time,
                 "output": result.stdout
             }
-        else:
-            print(f"❌ Benchmark failed with return code {result.returncode}")
-            print("STDERR:", result.stderr)
-            return {
-                "option": option_name,
-                "description": description,
-                "success": False,
-                "error": result.stderr,
-                "total_time": end_time - start_time
-            }
+        print(f"❌ Benchmark failed with return code {result.returncode}")
+        print("STDERR:", result.stderr)
+        return {
+            "option": option_name,
+            "description": description,
+            "success": False,
+            "error": result.stderr,
+            "total_time": end_time - start_time
+        }
 
     except subprocess.TimeoutExpired:
-        print(f"❌ Benchmark timed out after 5 minutes")
+        print("❌ Benchmark timed out after 5 minutes")
         return {
             "option": option_name,
             "description": description,
@@ -104,7 +102,7 @@ def modify_benchmark_for_option(option_name):
     benchmark_path = Path("src/benchmark.py")
 
     # Read the current file
-    with open(benchmark_path, 'r') as f:
+    with open(benchmark_path) as f:
         content = f.read()
 
     # Create backup
@@ -160,7 +158,7 @@ def restore_benchmark(backup_path):
     benchmark_path = Path("src/benchmark.py")
 
     if backup_path.exists():
-        with open(backup_path, 'r') as f:
+        with open(backup_path) as f:
             content = f.read()
 
         with open(benchmark_path, 'w') as f:

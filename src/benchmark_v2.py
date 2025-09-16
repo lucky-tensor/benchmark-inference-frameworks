@@ -131,7 +131,7 @@ Available frameworks:
             suite.compare_results()
 
         # Additional post-benchmark cleanup
-        print(f"\n🔄 Final system cleanup...")
+        print("\n🔄 Final system cleanup...")
         import gc
         import time
 
