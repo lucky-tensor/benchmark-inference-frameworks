@@ -106,7 +106,7 @@ def get_tinygrad_model_info(model):
         "total_parameters": total_params,
         "loaded_parameters": total_params,
         "model_memory_gb": param_bytes / (1024**3),
-        "precision": "mixed",  # TinyGrad uses mixed precision
+        "precision": "FP32",  # TinyGrad uses FP32 precision
     }
 
 

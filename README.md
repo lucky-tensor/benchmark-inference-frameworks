@@ -40,21 +40,25 @@ uv run -- --model llama3-8b --benchmark
 
 ## 📊 Framework Comparison Results
 
-Our fair benchmark comparing TinyGrad vs PyTorch (LLaMA 3-1B):
+Our fair benchmark comparing TinyGrad vs PyTorch (LLaMA 3-1B, FP32 precision):
 
 ```
-📊 Framework Comparison - Inference Engine Benchmark
-================================================================
-Metric                    TinyGrad |  PyTorch-Opt |  PyTorch-Base
-----------------------------------------------------------------
-Model Load (s)               15.66 |        31.24 |        38.43
-Cold Start (ms)              50.89 |       392.86 |       223.13
-Steady-State Latency (ms)    12.29 |        24.28 |        24.43
-Average Throughput (tok/s)    81.4 |         41.2 |         40.9
-Peak Memory (GB)              5.59 |         3.06 |         6.10
+📊 Framework Comparison - Fair Precision Benchmark
+====================================================================
+Metric                           TinyGrad |         PyTorch
+------------------------------------------------------------
+Model Load (s)                      17.30 |           49.85
+Cold Start (ms)                     50.32 |          477.37
+Steady-State Latency (ms)           12.20 |           29.57
+Average Throughput (tok/s)           82.0 |            33.8
+Peak Memory (GB)                     5.59 |            5.58
+Precision                            FP32 |            FP32
 ```
 
-**Key Findings**: TinyGrad achieves 2.0x throughput advantage with faster model loading and cold start performance.
+**Key Findings**:
+- TinyGrad achieves significant throughput advantage with superior JIT optimization
+- Both frameworks use identical FP32 precision and JIT compilation for fair comparison
+- TinyGrad has faster cold start and model loading performance
 
 ## 🎮 Usage Modes
 
