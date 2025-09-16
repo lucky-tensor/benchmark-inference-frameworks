@@ -41,7 +41,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         sys.path.insert(0, str(current_dir.parent.parent))
         sys.path.insert(0, str(current_dir.parent.parent / "llama"))  # For extra module imports
 
-        from backends.pytorch_backend import MODEL_CONFIGS, PyTorchLLaMA, load_pytorch_weights_from_tinygrad
+        from backends.pytorch_backend import MODEL_CONFIGS, PyTorchLLaMA, load_pytorch_weights_from_gguf
 
         # Create model
         model_size = self._extract_model_size(bench_run.model_id)
@@ -60,7 +60,7 @@ class PyTorchBaseExecutor(FrameworkExecutor):
             if gguf_files:
                 weight_path = gguf_files[0]
                 print(f"🔧 [PYTORCH-{self.variant.upper()}] Loading weights from: {weight_path.name}")
-                load_pytorch_weights_from_tinygrad(model, weight_path)
+                load_pytorch_weights_from_gguf(model, weight_path)
 
         model.eval()
         print(
@@ -179,7 +179,12 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         sys.path.insert(0, str(current_dir))
         sys.path.insert(0, str(current_dir.parent.parent))
         sys.path.insert(0, str(current_dir.parent.parent / "llama"))  # For extra module imports
-        from common.generation import ALPHA_F, ALPHA_P, TEMPERATURE, TOP_K, TOP_P
+        # PyTorch generation parameters (independent of TinyGrad)
+        TEMPERATURE = 0.7
+        TOP_K = 10
+        TOP_P = 0.8
+        ALPHA_F = 0.0
+        ALPHA_P = 0.0
 
         model = bench_run.model_instance
         device = next(model.parameters()).device

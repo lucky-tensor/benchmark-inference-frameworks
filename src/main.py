@@ -10,6 +10,7 @@ from pathlib import Path
 
 # Add parent directory to Python path to access src modules
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "frameworks" / "tinygrad"))
 
 from llama.llama3 import main as llama_main
 
