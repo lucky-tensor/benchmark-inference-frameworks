@@ -5,9 +5,9 @@ Text generation utilities and functions.
 from tinygrad import GlobalCounters, Tensor
 from tinygrad.helpers import tqdm
 
-TEMPERATURE = 0.95
-TOP_K = 0
-TOP_P = 0.0
+TEMPERATURE = 0.85
+TOP_K = 50
+TOP_P = 0.9
 ALPHA_F = 0.0
 ALPHA_P = 0.0
 
