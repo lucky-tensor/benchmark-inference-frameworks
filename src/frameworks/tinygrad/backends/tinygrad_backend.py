@@ -5,14 +5,42 @@ This module provides a standalone TinyGrad implementation separate from PyTorch.
 """
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
 
+# Set optimal TinyGrad environment variables at module level for maximum performance
+os.environ.setdefault("JIT", "1")          # Enable JIT compilation
+os.environ.setdefault("CUDA", "1")         # Enable CUDA if available
+os.environ.setdefault("FASTMATH", "1")     # Enable fast math optimizations
+os.environ.setdefault("OPT", "2")          # Maximum optimization level
+os.environ.setdefault("CLCACHE", "1")      # Enable kernel cache
+os.environ.setdefault("CUDACACHE", "1")    # Enable CUDA kernel cache
+
+# TinyGrad-specific optimizations for better caching
+os.environ.setdefault("TINYGRAD_JIT", "1")       # Enable TinyGrad JIT
+os.environ.setdefault("TINYGRAD_FUSION", "1")    # Enable kernel fusion
+
+# CUDA driver cache settings for better persistence
+os.environ.setdefault("CUDA_CACHE_MAXSIZE", "4294967296")  # 4GB cache size (vs 256MB default)
+os.environ.setdefault("CUDA_CACHE_DISABLE", "0")           # Ensure caching is enabled
+os.environ.setdefault("CUDA_FORCE_PTX_JIT", "0")          # Use cached binaries when available
+
+# Set cache path for consistency (optional - uses default location)
+cuda_cache_path = os.path.expanduser("~/.nv/ComputeCache")
+os.environ.setdefault("CUDA_CACHE_PATH", cuda_cache_path)
+
+# BEAM optimization configuration (4x speed improvement but very long compile times)
+# Can be disabled by setting TINYGRAD_BEAM=0 environment variable
+USE_BEAM = os.getenv("TINYGRAD_BEAM", "1") != "0"
+if USE_BEAM:
+    print("🚀 BEAM optimization enabled - expect long compile time but 4x speed improvement")
+
 
 def get_tinygrad_model(model_size: str, model_path: Path | None = None, **kwargs):
     """Load TinyGrad model with specified configuration."""
-    from tinygrad import Device
+    from tinygrad import Context, Device
 
     # Add path for llama modules
     sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,8 +59,12 @@ def get_tinygrad_model(model_size: str, model_path: Path | None = None, **kwargs
     shard = kwargs.get("shard", 1)
     device = tuple(f"{Device.DEFAULT}:{i}" for i in range(shard)) if shard > 1 else Device.DEFAULT
 
-    # Build model
-    return build_transformer(resolved_path, model_size=model_size, quantize=kwargs.get("quantize"), device=device)
+    # Build model with BEAM optimization if enabled
+    if USE_BEAM:
+        with Context(BEAM=1):
+            return build_transformer(resolved_path, model_size=model_size, quantize=kwargs.get("quantize"), device=device)
+    else:
+        return build_transformer(resolved_path, model_size=model_size, quantize=kwargs.get("quantize"), device=device)
 
 
 def get_tinygrad_tokenizer(tokenizer_path: Path):
@@ -59,16 +91,22 @@ def prepare_tinygrad_input(model, tokenizer):
 
 def run_tinygrad_inference(model, input_data: int, start_pos: int):
     """Run single inference step with TinyGrad."""
-    from tinygrad import GlobalCounters, Tensor
+    from tinygrad import Context, GlobalCounters, Tensor
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from common.generation import ALPHA_F, ALPHA_P, TEMPERATURE, TOP_K, TOP_P
 
+    # Reset counters once per inference call (matches main branch performance pattern)
     GlobalCounters.reset()
 
     device = model.tok_embeddings.weight.device if hasattr(model.tok_embeddings.weight, "device") else "cuda"
 
-    tok = model(Tensor([[input_data]], device=device), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
+    # Run inference with BEAM optimization if enabled
+    if USE_BEAM:
+        with Context(BEAM=1):
+            tok = model(Tensor([[input_data]], device=device), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
+    else:
+        tok = model(Tensor([[input_data]], device=device), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
 
     return tok.item()
 
@@ -96,194 +134,110 @@ def get_tinygrad_device_info():
     return str(Device.DEFAULT)
 
 
-def run_tinygrad_benchmark(model_size: str = "1B", model_path: Path | None = None, iterations: int = 20, **kwargs):
-    """Run standalone TinyGrad benchmark."""
-    print("🚀 Running TinyGrad Benchmark")
-    print("=" * 50)
+def warm_tinygrad_cache(model, tokenizer, verbose: bool = False):
+    """Warm up TinyGrad JIT cache by running a few inference steps."""
+    if verbose:
+        print("🔥 Warming TinyGrad JIT cache...")
 
-    # Load model and tokenizer
-    print("Loading TinyGrad model...")
-    start_time = time.time()
-    model = get_tinygrad_model(model_size, model_path, **kwargs)
-    model_load_time = time.time() - start_time
-    print(f"Model loaded in {model_load_time:.2f}s")
+    # Run a few quick inference steps to populate cache
+    for i in range(3):
+        try:
+            # Use a simple single token to warm cache
+            input_data, start_pos = prepare_tinygrad_input(model, tokenizer)
+            _ = run_tinygrad_inference(model, input_data, start_pos + i)
+            if verbose and i == 0:
+                print("   Cache warming completed")
+            break  # Exit after first successful run
+        except Exception as e:
+            if verbose:
+                print(f"   Cache warming step {i+1} failed: {e}")
+            continue
 
-    # Determine tokenizer path
-    if model_path and model_path.is_dir():
-        tokenizer_path = model_path / "tokenizer.model"
-    elif model_path:
-        tokenizer_path = model_path.parent / "tokenizer.model"
-    else:
-        # Default path
-        tokenizer_path = Path.home() / "models" / f"llama3-{model_size.lower()}-instruct" / "tokenizer.model"
 
-    print("Loading tokenizer...")
-    tokenizer = get_tinygrad_tokenizer(tokenizer_path)
+def direct_benchmark_test(model_path: Path, iterations: int = 5):
+    """Direct benchmark test bypassing the executor framework."""
+    print("🚀 Direct TinyGrad Performance Test (bypassing executor framework)")
+    print("=" * 65)
 
-    # Get model info
-    model_info = get_tinygrad_model_info(model)
-    device = get_tinygrad_device_info()
+    # Load model directly
+    print("Loading model...")
+    model_load_start = time.perf_counter()
+    model = get_tinygrad_model("1B", model_path)
+    model_load_time = time.perf_counter() - model_load_start
+    print(f"✅ Model loaded in {model_load_time:.2f}s")
 
-    print(f"Model: {model_info['total_parameters']:,} parameters")
-    print(f"Device: {device}")
-    print(f"Memory: {model_info['model_memory_gb']:.2f} GB")
+    # Load tokenizer directly
+    tokenizer = get_tinygrad_tokenizer(model_path / "tokenizer.model")
+    print("✅ Tokenizer loaded")
 
-    # Prepare input
+    # Prepare input directly
     input_data, start_pos = prepare_tinygrad_input(model, tokenizer)
 
-    # Run cold start measurement
-    print("\n🥶 Cold Start Measurement (includes JIT compilation)")
-    print("=" * 50)
+    # Cold start test
+    print("\n❄️  Cold start test...")
+    cold_start = time.perf_counter()
+    run_tinygrad_inference(model, input_data, start_pos)
+    cold_time = time.perf_counter() - cold_start
+    print(f"Cold start: {cold_time * 1000:.2f}ms ({1/cold_time:.1f} tok/s)")
 
-    # Time the cold start (first inference)
-    cold_start_time = time.perf_counter()
-
-    try:
-        _cold_start_token = run_tinygrad_inference(model, input_data, start_pos)
-        cold_start_end = time.perf_counter()
-        cold_start_duration = cold_start_end - cold_start_time
-
-        print(f"❄️  Cold start: {cold_start_duration * 1000:6.2f}ms, {1.0 / cold_start_duration:6.1f} tok/s")
-
-    except Exception as e:
-        print(f"❌ Cold start failed: {e}")
-        raise
-
-    # Run steady-state benchmark (excluding cold start)
-    print(f"\n🔥 Steady-State Benchmark ({iterations} iterations)")
-    print("=" * 50)
-    token_times = []
-    warmup_iterations = min(3, iterations // 4)  # Use first 25% or 3 iterations as warmup
-
+    # Steady state tests
+    print(f"\n⚡ Steady-state test ({iterations} iterations)...")
+    times = []
     for i in range(iterations):
-        # Time the inference
-        start_time = time.perf_counter()
+        start = time.perf_counter()
+        run_tinygrad_inference(model, input_data, start_pos + i + 1)
+        end = time.perf_counter()
+        iteration_time = end - start
+        times.append(iteration_time)
+        print(f"  Iteration {i+1}: {iteration_time*1000:.2f}ms ({1/iteration_time:.1f} tok/s)")
 
-        try:
-            run_tinygrad_inference(model, input_data, start_pos + i + 1)  # +1 because cold start used start_pos
-            end_time = time.perf_counter()
-            iteration_time = end_time - start_time
-            token_times.append(iteration_time)
-
-            tokens_per_second = 1.0 / iteration_time
-            status_symbol = "🌡️" if i < warmup_iterations else "⚡"
-            warmup_text = " (warmup)" if i < warmup_iterations else ""
-            print(
-                f"{status_symbol} Iteration {i + 1:2d}: {iteration_time * 1000:6.2f}ms, {tokens_per_second:6.1f} tok/s{warmup_text}"
-            )
-
-        except Exception as e:
-            print(f"❌ Error in iteration {i + 1}: {e}")
-            break
-
-    # Calculate results
-    if not token_times:
-        raise RuntimeError("No successful iterations completed")
-
-    # Overall steady-state metrics
-    avg_token_time = sum(token_times) / len(token_times)
-    total_time = sum(token_times)
-    min_token_time = min(token_times)
-    max_token_time = max(token_times)
-
-    avg_tokens_per_second = 1.0 / avg_token_time
-    peak_tokens_per_second = 1.0 / min_token_time
-
-    # Calculate steady-state metrics (excluding warmup)
-    warmup_iterations = min(3, len(token_times) // 4)
-    steady_state_times = token_times[warmup_iterations:] if len(token_times) > warmup_iterations else token_times
-
-    if steady_state_times:
-        steady_state_avg_time = sum(steady_state_times) / len(steady_state_times)
-        steady_state_avg_tokens_per_second = 1.0 / steady_state_avg_time
-        first_steady_token_time = steady_state_times[0] if steady_state_times else avg_token_time
-    else:
-        steady_state_avg_tokens_per_second = avg_tokens_per_second
-        first_steady_token_time = avg_token_time
-
-    # Print results
-    print("\n🏆 TinyGrad Benchmark Results")
-    print("=" * 50)
-    print(f"Model: LLaMA {model_size} ({model_info['total_parameters']:,} parameters)")
-    print(f"Device: {device}")
-    print(f"Iterations: {len(token_times)}")
-
-    print("\n📥 Model Loading:")
-    print(f"  Model load time:     {model_load_time:6.2f}s")
-
-    print("\n❄️  Cold Start Metrics:")
-    print(f"  Cold start latency:  {cold_start_duration * 1000:6.2f}ms (includes JIT compilation)")
-    print(f"  Cold start throughput: {1.0 / cold_start_duration:6.1f} tokens/second")
-
-    print("\n⏱️  Steady-State Performance Metrics:")
-    print(f"  Average latency:     {avg_token_time * 1000:6.2f}ms per token")
-    print(f"  First token latency:  {first_steady_token_time * 1000:6.2f}ms")
-    print(f"  Min latency:         {min_token_time * 1000:6.2f}ms per token")
-    print(f"  Max latency:         {max_token_time * 1000:6.2f}ms per token")
-
-    print("\n🚀 Throughput Metrics:")
-    print(f"  Average throughput:  {avg_tokens_per_second:6.1f} tokens/second")
-    print(f"  Peak throughput:     {peak_tokens_per_second:6.1f} tokens/second")
-    print(f"  Steady-state avg:    {steady_state_avg_tokens_per_second:6.1f} tokens/second")
-
-    # Show performance improvement from cold start to steady state
-    improvement_factor = steady_state_avg_tokens_per_second / (1.0 / cold_start_duration)
-    print(f"  Warmup improvement:  {improvement_factor:6.1f}x faster than cold start")
-
-    print("\n💾 Memory Metrics:")
-    print(f"  Model memory:        {model_info['model_memory_gb']:6.2f} GB")
-    print(f"  Peak memory:         {model_info['model_memory_gb']:6.2f} GB (estimate)")
-    print(f"  Precision:           {model_info['precision']}")
+    # Results
+    avg_time = sum(times) / len(times)
+    min_time = min(times)
+    print("\n🏆 Direct Performance Results:")
+    print(f"  Average: {avg_time*1000:.2f}ms ({1/avg_time:.1f} tok/s)")
+    print(f"  Peak:    {min_time*1000:.2f}ms ({1/min_time:.1f} tok/s)")
+    print("  vs Main Branch Target: 82+ tok/s")
 
 
 def main():
-    """Standalone TinyGrad backend for benchmarking."""
-    parser = argparse.ArgumentParser(description="Pure TinyGrad LLaMA Backend")
+    """Simple TinyGrad backend testing utility."""
+    parser = argparse.ArgumentParser(description="TinyGrad LLaMA Backend Functions")
     parser.add_argument("--size", choices=["1B", "8B", "70B", "405B"], default="1B", help="Model size")
     parser.add_argument("--model", type=Path, help="Path to model directory")
-    parser.add_argument("--benchmark", action="store_true", help="Run benchmark")
     parser.add_argument("--quantize", choices=["int8", "nf4", "float16"], help="Quantization method")
     parser.add_argument("--shard", type=int, default=1, help="Number of device shards")
-    parser.add_argument("--iterations", type=int, default=20, help="Number of benchmark iterations")
+    parser.add_argument("--direct-benchmark", action="store_true", help="Run direct performance test")
 
     args = parser.parse_args()
 
-    if args.benchmark:
-        run_tinygrad_benchmark(
-            model_size=args.size,
-            model_path=args.model,
-            iterations=args.iterations,
-            quantize=args.quantize,
-            shard=args.shard,
-        )
-    else:
-        # Interactive mode
-        print("TinyGrad LLaMA Model loading...")
-        model = get_tinygrad_model(args.size, args.model, quantize=args.quantize, shard=args.shard)
+    if args.direct_benchmark:
+        if args.model:
+            direct_benchmark_test(args.model)
+        else:
+            direct_benchmark_test(Path.home() / "models/llama3-1b-instruct")
+        return
 
-        # Load tokenizer
-        tokenizer_path = (
-            args.model / "tokenizer.model" if args.model else Path.home() / "models/llama3-1b-instruct/tokenizer.model"
-        )
-        tokenizer = get_tinygrad_tokenizer(tokenizer_path)
-
-        print("TinyGrad LLaMA Model loaded. Type 'quit' to exit.")
-
-        while True:
-            user_input = input("User: ")
-            if user_input.lower() == "quit":
-                break
-
-            # Simple generation using TinyGrad's built-in chat interface
-            try:
-                sys.path.insert(0, str(Path(__file__).parent.parent))
-                from common.chat_interface import interact_with_model
-
-                # This would need to be adapted for the specific chat interface
-                print("Assistant: (TinyGrad interactive mode - full implementation would use chat_interface.py)")
-
-            except ImportError:
-                print("Assistant: Interactive chat not available in standalone mode")
+    print("TinyGrad LLaMA Backend Functions")
+    print("=" * 40)
+    print("This module provides backend functions for TinyGrad inference.")
+    print("For benchmarking, use: uv run src/main.py --framework tinygrad")
+    print("")
+    print("Available functions:")
+    print("  - get_tinygrad_model()")
+    print("  - get_tinygrad_tokenizer()")
+    print("  - prepare_tinygrad_input()")
+    print("  - run_tinygrad_inference()")
+    print("  - get_tinygrad_model_info()")
+    print("  - get_tinygrad_device_info()")
+    print("")
+    print("Example usage in main benchmark suite:")
+    print("  uv run src/main.py --model-id llama3-1b-instruct \\")
+    print("    --model-path ~/models/llama3-1b-instruct \\")
+    print("    --framework tinygrad --iterations 10")
+    print("")
+    print("Direct performance test:")
+    print("  uv run src/frameworks/tinygrad/backends/tinygrad_backend.py --direct-benchmark")
 
 
 if __name__ == "__main__":

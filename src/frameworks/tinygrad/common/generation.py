@@ -46,8 +46,9 @@ def prefill(model, toks, start_pos=0, device_param=None):
         last_seen_toks = toks
         toks = toks[i:]
 
+    # Reset counters once for the entire prefill sequence (not per token)
+    GlobalCounters.reset()
     for tok in tqdm(toks):
-        GlobalCounters.reset()
         model(Tensor([[tok]], device=model_device), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P).realize()
         start_pos += 1
     return start_pos

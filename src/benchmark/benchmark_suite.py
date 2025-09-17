@@ -85,16 +85,19 @@ class BenchmarkSuite:
             # Prepare input
             input_data, start_pos = executor.prepare_input(bench_run)
 
-            # Cold start measurement
-            print("\n🥶 Cold Start Measurement")
+            # Time to first token and cold start measurement
+            print("\n🥶 Cold Start & TTFT Measurement")
             print("=" * 40)
-            start_time = bench_run.time_log.start_timer()
-            _ = executor.run_inference(bench_run, input_data, start_pos)
-            cold_start_time = bench_run.time_log.end_timer(start_time)
+
+            # Run multi-token generation to capture TTFT
+            ttft_metrics = executor.run_multi_token_generation(bench_run, input_data, start_pos, num_tokens=5)
+            time_to_first_token_ms = ttft_metrics["first_token_ms"]
+            cold_start_time = time_to_first_token_ms / 1000  # Use TTFT as cold start for compatibility
             bench_run.time_log.cold_start = cold_start_time
 
             cold_start_throughput = 1.0 / cold_start_time if cold_start_time > 0 else 0
             print(f"❄️  Cold start: {cold_start_time * 1000:.2f}ms, {cold_start_throughput:.1f} tok/s")
+            print(f"⚡ Time to first token: {time_to_first_token_ms:.2f}ms")
 
             # Steady-state benchmark
             print(f"\n🔥 Steady-State Benchmark ({bench_run.iterations} iterations)")
@@ -134,6 +137,7 @@ class BenchmarkSuite:
                 peak_throughput_tokens_per_sec=peak_throughput,
                 steady_state_throughput_tokens_per_sec=steady_state_throughput,
                 cold_start_latency_ms=cold_start_time * 1000,
+                time_to_first_token_ms=time_to_first_token_ms,
                 model_memory_gb=model_info.get("model_memory_gb", 0),
                 peak_memory_gb=model_info.get("peak_memory_gb", model_info.get("model_memory_gb", 0)),
                 total_parameters=model_info.get("total_parameters", 0),
@@ -156,6 +160,7 @@ class BenchmarkSuite:
             print(f"Average throughput:    {steady_state_throughput:.1f} tokens/second")
             print(f"Peak throughput:       {peak_throughput:.1f} tokens/second")
             print(f"Steady-state avg:      {steady_state_throughput:.1f} tokens/second")
+            print(f"Time to first token:   {time_to_first_token_ms:.2f}ms")
             print(f"Warmup improvement:   {warmup_improvement:.1f}x faster than cold start")
 
             return bench_run.results
@@ -191,14 +196,15 @@ class BenchmarkSuite:
             return
 
         print("\n📊 BENCHMARK COMPARISON")
-        print("=" * 80)
-        print(f"{'Framework':<20} {'Model':<12} {'Throughput (tok/s)':<18} {'Cold Start (ms)':<15}")
-        print("-" * 80)
+        print("=" * 95)
+        print(f"{'Framework':<20} {'Model':<12} {'Throughput (tok/s)':<18} {'TTFT (ms)':<12} {'Cold Start (ms)':<15}")
+        print("-" * 95)
 
         for run in executed_runs:
             if run.results:
                 print(
                     f"{run.framework_name:<20} {run.model_id:<12} "
                     f"{run.results.steady_state_throughput_tokens_per_sec:<18.1f} "
+                    f"{run.results.time_to_first_token_ms:<12.1f} "
                     f"{run.results.cold_start_latency_ms:<15.1f}"
                 )

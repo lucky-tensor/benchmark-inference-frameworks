@@ -57,6 +57,34 @@ class FrameworkExecutor(ABC):
         Returns the next token or output.
         """
 
+    def run_multi_token_generation(self, bench_run: "BenchRun", input_data: Any, start_pos: int, num_tokens: int = 5) -> dict[str, float]:
+        """
+        Run multi-token generation to measure time to first token.
+
+        Returns dict with timing metrics:
+        - first_token_ms: Time to generate first token
+        - avg_token_ms: Average time per token across all tokens
+        """
+        import time
+
+        first_token_time = None
+        token_times = []
+
+        for i in range(num_tokens):
+            token_start = time.perf_counter()
+            _ = self.run_inference(bench_run, input_data, start_pos + i)
+            token_time = time.perf_counter() - token_start
+            token_times.append(token_time)
+
+            if first_token_time is None:
+                first_token_time = token_time
+
+        return {
+            "first_token_ms": first_token_time * 1000 if first_token_time else 0,
+            "avg_token_ms": (sum(token_times) / len(token_times)) * 1000 if token_times else 0,
+            "all_token_times": [t * 1000 for t in token_times]
+        }
+
     @abstractmethod
     def get_model_info(self, bench_run: "BenchRun") -> dict[str, Any]:
         """

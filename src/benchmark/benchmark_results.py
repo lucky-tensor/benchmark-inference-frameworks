@@ -19,6 +19,7 @@ class BenchmarkResults:
     peak_throughput_tokens_per_sec: float
     steady_state_throughput_tokens_per_sec: float
     cold_start_latency_ms: float
+    time_to_first_token_ms: float
 
     # Memory metrics
     model_memory_gb: float

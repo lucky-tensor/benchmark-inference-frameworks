@@ -3,6 +3,7 @@
 TinyGrad framework executor implementation.
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,20 @@ from benchmark import BenchRun, FrameworkExecutor
 
 class TinyGradExecutor(FrameworkExecutor):
     """Executor for TinyGrad framework."""
+
+    def __init__(self):
+        """Initialize TinyGrad executor with optimal environment settings."""
+        super().__init__()
+        # Set TinyGrad environment variables for better performance
+        # Note: BEAM=1 provides 4x speed improvement but has very long compile times
+        # Start with moderate optimizations for now
+        os.environ["JIT"] = "1"          # Enable JIT compilation
+        os.environ["CUDA"] = "1"         # Enable CUDA if available
+        os.environ["FASTMATH"] = "1"     # Enable fast math optimizations
+        os.environ["OPT"] = "2"          # Maximum optimization level
+        os.environ["CLCACHE"] = "1"      # Enable kernel cache
+        os.environ["CUDACACHE"] = "1"    # Enable CUDA kernel cache
+        # TODO: Add BEAM=1 after optimizing for compilation time
 
     def get_framework_name(self) -> str:
         return "tinygrad"

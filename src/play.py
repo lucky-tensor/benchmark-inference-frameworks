@@ -52,6 +52,7 @@ Examples:
 
 def generate_response(model, tokenizer, prompt: str, max_tokens: int = 50, verbose: bool = False):
     """Generate response from model given a prompt."""
+    import time
 
     # Import TinyGrad backend functions
     from frameworks.tinygrad.backends.tinygrad_backend import run_tinygrad_inference
@@ -69,21 +70,34 @@ def generate_response(model, tokenizer, prompt: str, max_tokens: int = 50, verbo
         print(f"🔧 Input tokens ({len(toks)}): {toks[:10]}{'...' if len(toks) > 10 else ''}")
 
     # Prefill the model
+    prefill_start = time.perf_counter()
     start_pos = prefill(model, toks[:-1])
+    prefill_time = time.perf_counter() - prefill_start
 
     print(f"\n💬 **{prompt}**\n")
     print("🤖 ", end="", flush=True)
 
     generated_tokens = []
     current_token = toks[-1]  # Start with the assistant role token
+    generation_times = []
+    generation_start = time.perf_counter()
+    first_token_time = None
 
     # Generate tokens one by one
     for i in range(max_tokens):
         try:
-            # Run inference to get next token
+            # Time each token generation
+            token_start = time.perf_counter()
             next_token = run_tinygrad_inference(model, current_token, start_pos + i)
+            token_time = time.perf_counter() - token_start
+
             generated_tokens.append(next_token)
             current_token = next_token
+            generation_times.append(token_time)
+
+            # Record first token time
+            if first_token_time is None:
+                first_token_time = token_time
 
             # Decode and print the token
             try:
@@ -122,7 +136,33 @@ def generate_response(model, tokenizer, prompt: str, max_tokens: int = 50, verbo
                 traceback.print_exc()
             break
 
-    print("\n")
+    # Calculate and display performance statistics
+    total_generation_time = time.perf_counter() - generation_start
+    num_tokens = len(generated_tokens)
+
+    if num_tokens > 0 and generation_times:
+        avg_latency_ms = (sum(generation_times) / len(generation_times)) * 1000
+        peak_throughput = max(1.0 / t for t in generation_times) if generation_times else 0
+        avg_throughput = num_tokens / total_generation_time if total_generation_time > 0 else 0
+        first_token_latency_ms = first_token_time * 1000 if first_token_time else 0
+
+        print("\n")
+        print("📊 Generation Statistics:")
+        print("=" * 40)
+        print(f"Generated tokens:      {num_tokens}")
+        print(f"First token:           {first_token_latency_ms:.2f}ms")
+        print(f"Average latency:       {avg_latency_ms:.2f}ms per token")
+        print(f"Average throughput:    {avg_throughput:.1f} tokens/second")
+        print(f"Peak throughput:       {peak_throughput:.1f} tokens/second")
+        print(f"Prefill time:          {prefill_time * 1000:.2f}ms")
+        print(f"Total generation:      {total_generation_time * 1000:.2f}ms")
+
+        if verbose:
+            print(f"Token times: {[f'{t*1000:.1f}ms' for t in generation_times[:5]]}" +
+                  ("..." if len(generation_times) > 5 else ""))
+    else:
+        print("\n")
+
     return generated_tokens
 
 
