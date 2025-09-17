@@ -7,7 +7,7 @@ Defines the BenchRun class that encapsulates all benchmark execution parameters.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from .benchmark_results import BenchmarkResults
 from .time_tracking import TimeLog
@@ -29,7 +29,7 @@ class BenchRun:
 
     # Framework specification
     framework_name: str  # e.g., "tinygrad", "pytorch-unoptimized", "pytorch-inductor"
-    framework_version: Union[str, None] = None
+    framework_version: str | None = None
 
     # Benchmark configuration
     iterations: int = 20
@@ -49,19 +49,19 @@ class BenchRun:
 
     # Results and timing (populated during execution)
     time_log: TimeLog = field(default_factory=TimeLog)
-    results: Union[BenchmarkResults, None] = None
-    model_instance: Union[Any, None] = None
-    tokenizer_instance: Union[Any, None] = None
+    results: BenchmarkResults | None = None
+    model_instance: Any | None = None
+    tokenizer_instance: Any | None = None
 
     # Execution state
     is_executed: bool = False
-    execution_error: Union[str, None] = None
+    execution_error: str | None = None
 
     def get_framework_type(self) -> str:
         """Get the base framework type (e.g., 'pytorch' from 'pytorch-inductor')."""
         return self.framework_name.split("-")[0]
 
-    def get_framework_variant(self) -> Union[str, None]:
+    def get_framework_variant(self) -> str | None:
         """Get the framework variant (e.g., 'inductor' from 'pytorch-inductor')."""
         parts = self.framework_name.split("-", 1)
         return parts[1] if len(parts) > 1 else None

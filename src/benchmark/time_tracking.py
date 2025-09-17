@@ -7,7 +7,6 @@ Provides structured timing tracking for all phases of benchmark execution.
 
 import time
 from dataclasses import dataclass, field
-from typing import Union
 
 
 @dataclass
@@ -19,11 +18,11 @@ class TimeLog:
     """
 
     # Core timing steps
-    model_loading: Union[float, None] = None
-    model_compilation: Union[float, None] = None
-    tokenizer_loading: Union[float, None] = None
-    memory_clearing: Union[float, None] = None
-    cold_start: Union[float, None] = None
+    model_loading: float | None = None
+    model_compilation: float | None = None
+    tokenizer_loading: float | None = None
+    memory_clearing: float | None = None
+    cold_start: float | None = None
 
     # Inference timing arrays
     iteration_times: list[float] = field(default_factory=list)
@@ -31,8 +30,8 @@ class TimeLog:
     steady_state_times: list[float] = field(default_factory=list)
 
     # Cleanup timing
-    framework_cleanup: Union[float, None] = None
-    memory_cleanup: Union[float, None] = None
+    framework_cleanup: float | None = None
+    memory_cleanup: float | None = None
 
     def start_timer(self) -> float:
         """Start a timer and return the start time."""

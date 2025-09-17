@@ -80,4 +80,3 @@ class FrameworkExecutor(ABC):
         Default implementation does nothing. Override if framework supports compilation.
         Should update bench_run.time_log.model_compilation.
         """
-        pass

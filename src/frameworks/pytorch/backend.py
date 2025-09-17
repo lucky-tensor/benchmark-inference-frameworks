@@ -15,13 +15,16 @@ import torch.nn.functional as F
 # Model configurations for different sizes
 MODEL_CONFIGS = {
     "1B": {
-        "dim": 2048,
-        "n_heads": 32,
-        "n_kv_heads": 8,
+        "dim": 2048,  # Processing dimension (from attention/ffn norms)
+        "embed_dim": 1680,  # Embedding dimension (from token_embd.weight)
+        "n_heads": 32,  # Q projection: 2048 / 64 = 32 heads
+        "n_kv_heads": 8,  # K/V projection: 512 / 64 = 8 heads
         "n_layers": 16,
         "rope_theta": 500000,
         "vocab_size": 128256,
-        "hidden_dim": 8192,
+        "hidden_dim": 8192,  # FFN hidden dimension from GGUF file
+        # Note: This Llama-3.2-1B model has non-standard architecture with different
+        # embedding and processing dimensions
     },
     "8B": {
         "dim": 4096,
@@ -192,10 +195,13 @@ class TransformerBlock(nn.Module):
 
 
 class PyTorchLLaMA(nn.Module):
-    def __init__(self, dim, n_heads, n_kv_heads, n_layers, rope_theta, vocab_size, hidden_dim):
+    def __init__(self, dim, n_heads, n_kv_heads, n_layers, rope_theta, vocab_size, hidden_dim, embed_dim=None):
         super().__init__()
+        self.embed_dim = embed_dim if embed_dim is not None else dim
+
         self.config = {
             "dim": dim,
+            "embed_dim": self.embed_dim,
             "n_heads": n_heads,
             "n_kv_heads": n_kv_heads,
             "n_layers": n_layers,
@@ -205,10 +211,24 @@ class PyTorchLLaMA(nn.Module):
         }
 
         # Model layers
-        self.tok_embeddings = nn.Embedding(vocab_size, dim)
+        self.tok_embeddings = nn.Embedding(vocab_size, self.embed_dim)
+
+        # Input projection from embedding dim to processing dim (if different)
+        if self.embed_dim != dim:
+            self.input_proj = nn.Linear(self.embed_dim, dim, bias=False)
+        else:
+            self.input_proj = None
+
         self.layers = nn.ModuleList([TransformerBlock(self.config) for _ in range(n_layers)])
         self.norm = RMSNorm(dim)
-        self.output = nn.Linear(dim, vocab_size, bias=False)
+
+        # Output projection back to embedding space, then to vocab
+        if self.embed_dim != dim:
+            self.output_proj = nn.Linear(dim, self.embed_dim, bias=False)
+        else:
+            self.output_proj = None
+
+        self.output = nn.Linear(self.embed_dim, vocab_size, bias=False)
 
         # Initialize weights
         self.apply(self._init_weights)
@@ -221,12 +241,21 @@ class PyTorchLLaMA(nn.Module):
         # Embed tokens
         x = self.tok_embeddings(tokens)
 
+        # Project from embedding dim to processing dim if needed
+        if self.input_proj is not None:
+            x = self.input_proj(x)
+
         # Apply transformer layers
         for layer in self.layers:
             x = layer(x, pos, temperature)
 
         # Final norm and output projection
         x = self.norm(x)
+
+        # Project back to embedding dim if needed
+        if self.output_proj is not None:
+            x = self.output_proj(x)
+
         logits = self.output(x)
 
         # For inference, sample from the last token
@@ -348,12 +377,31 @@ class PyTorchTokenizer:
         return f"[{len(tokens)} tokens]"
 
 
-def load_pytorch_weights_from_gguf(model: PyTorchLLaMA, gguf_path: Path):
-    """Load GGUF weights directly into PyTorch model without TinyGrad dependency."""
+def load_pytorch_weights_from_gguf(model: PyTorchLLaMA, gguf_path: Path) -> bool:
+    """
+    Load GGUF weights directly into PyTorch model without TinyGrad dependency.
+
+    Returns:
+        bool: True if weights were successfully loaded, False otherwise.
+
+    Raises:
+        ImportError: If gguf library is not available.
+        FileNotFoundError: If the GGUF file doesn't exist.
+        Exception: If weight loading fails for any other reason.
+    """
+    if not gguf_path.exists():
+        raise FileNotFoundError(f"GGUF file not found: {gguf_path}")
+
     try:
         # Try using gguf library for direct loading
         import gguf
+    except ImportError as e:
+        raise ImportError(
+            "The 'gguf' library is required for loading model weights. "
+            "Install it with: pip install gguf"
+        ) from e
 
+    try:
         print(f"Loading GGUF file: {gguf_path}")
         reader = gguf.GGUFReader(str(gguf_path))
 
@@ -367,27 +415,57 @@ def load_pytorch_weights_from_gguf(model: PyTorchLLaMA, gguf_path: Path):
                 data = data.numpy()
             tensors[name] = torch.from_numpy(data.copy())
 
+        if not tensors:
+            raise ValueError(f"No tensors found in GGUF file: {gguf_path}")
+
         # Map GGUF tensor names to PyTorch model structure
-        _load_gguf_tensors_to_model(model, tensors)
+        loaded_count, total_expected = _load_gguf_tensors_to_model(model, tensors)
 
-    except ImportError:
-        print("⚠️  gguf library not available, trying alternative method...")
-        # Fallback: skip weight loading (model will use random weights)
-        print("⚠️  Continuing with random weights - install 'gguf' library for proper weight loading")
+        if loaded_count == 0:
+            raise ValueError("No model weights were successfully loaded from GGUF file")
+
+        # Check if we loaded a reasonable proportion of weights
+        success_rate = loaded_count / total_expected
+
+        if success_rate < 0.7:  # Less than 70% success rate indicates major incompatibility
+            raise ValueError(
+                f"Model weight loading had low success rate ({success_rate:.1%}): "
+                f"loaded {loaded_count}/{total_expected} tensors. "
+                f"This suggests the GGUF file has incompatible dimensions with the PyTorch model configuration. "
+                f"The model architecture in the GGUF file may not match the expected configuration."
+            )
+
+        print(f"✅ Successfully loaded {loaded_count}/{total_expected} weight tensors from GGUF file ({success_rate:.1%})")
+
+        if success_rate < 1.0:
+            print(f"⚠️  Note: {total_expected - loaded_count} tensors had dimension mismatches and were not loaded")
+
+        return True
+
     except Exception as e:
-        print(f"⚠️  Could not load GGUF weights: {e}")
-        print("⚠️  Continuing with random weights")
+        raise Exception(f"Failed to load GGUF weights from {gguf_path}: {e}") from e
 
 
-def _load_gguf_tensors_to_model(model: PyTorchLLaMA, tensors: dict):
-    """Map GGUF tensor names to PyTorch model structure."""
+def _load_gguf_tensors_to_model(model: PyTorchLLaMA, tensors: dict) -> tuple[int, int]:
+    """
+    Map GGUF tensor names to PyTorch model structure.
 
+    Returns:
+        tuple[int, int]: (loaded_count, total_expected)
+    """
     # GGUF to PyTorch name mapping (common GGUF format)
     name_mapping = {
         "token_embd.weight": "tok_embeddings.weight",
         "output_norm.weight": "norm.weight",
-        "output.weight": "output.weight"
     }
+
+    # Check if model uses tied embeddings (no separate output.weight)
+    if "output.weight" in tensors:
+        name_mapping["output.weight"] = "output.weight"
+    else:
+        # Use tied embeddings: output layer shares weights with token embeddings
+        print("  Using tied embeddings (output layer shares weights with token embeddings)")
+        name_mapping["token_embd.weight_tied"] = "output.weight"
 
     # Add layer-specific mappings
     for i in range(len(model.layers)):
@@ -403,9 +481,34 @@ def _load_gguf_tensors_to_model(model: PyTorchLLaMA, tensors: dict):
             f"blk.{i}.ffn_up.weight": f"layers.{i}.feed_forward.w3.weight",
         })
 
+    loaded_count = 0
+    failed_count = 0
+
     # Load weights into model
     with torch.no_grad():
         for gguf_name, pytorch_name in name_mapping.items():
+            # Handle tied embeddings special case
+            if gguf_name == "token_embd.weight_tied":
+                # Copy token embedding weights to output layer
+                if "token_embd.weight" in tensors:
+                    try:
+                        embed_tensor = tensors["token_embd.weight"]
+                        output_param = model.output.weight
+
+                        if output_param.shape == embed_tensor.shape:
+                            output_param.copy_(embed_tensor)
+                            print(f"✓ Loaded token_embd.weight -> {pytorch_name} (tied embeddings)")
+                            loaded_count += 1
+                        else:
+                            print(f"⚠️  Shape mismatch for tied embeddings: {output_param.shape} != {embed_tensor.shape}")
+                            failed_count += 1
+
+                    except Exception as e:
+                        print(f"⚠️  Failed to load tied embeddings: {e}")
+                        failed_count += 1
+                continue
+
+            # Regular tensor loading
             if gguf_name in tensors:
                 try:
                     # Navigate to the parameter in the model
@@ -421,13 +524,17 @@ def _load_gguf_tensors_to_model(model: PyTorchLLaMA, tensors: dict):
                     if param.shape == tensor_data.shape:
                         param.copy_(tensor_data)
                         print(f"✓ Loaded {gguf_name} -> {pytorch_name}")
+                        loaded_count += 1
                     else:
                         print(f"⚠️  Shape mismatch for {pytorch_name}: {param.shape} != {tensor_data.shape}")
+                        failed_count += 1
 
                 except Exception as e:
                     print(f"⚠️  Failed to load {pytorch_name}: {e}")
+                    failed_count += 1
 
-    print("✅ Finished loading GGUF weights into PyTorch model")
+    print(f"✅ Finished loading GGUF weights: {loaded_count} successful, {failed_count} failed")
+    return loaded_count, len(name_mapping)
 
 
 def main():

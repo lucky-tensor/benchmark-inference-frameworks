@@ -54,13 +54,29 @@ class PyTorchBaseExecutor(FrameworkExecutor):
         model = model.to(device)
         print(f"🔧 [PYTORCH-{self.variant.upper()}] Model moved to device: {device}")
 
-        # Load weights if provided
+        # Load weights if provided - this is REQUIRED for valid benchmarking
+        weights_loaded = False
         if bench_run.model_path and bench_run.model_path.is_dir():
             gguf_files = list(bench_run.model_path.glob("*.gguf"))
             if gguf_files:
                 weight_path = gguf_files[0]
                 print(f"🔧 [PYTORCH-{self.variant.upper()}] Loading weights from: {weight_path.name}")
-                load_pytorch_weights_from_gguf(model, weight_path)
+                try:
+                    weights_loaded = load_pytorch_weights_from_gguf(model, weight_path)
+                except Exception as e:
+                    print(f"❌ [PYTORCH-{self.variant.upper()}] Failed to load model weights: {e}")
+                    print(f"❌ [PYTORCH-{self.variant.upper()}] Benchmark cannot proceed with random weights")
+                    raise RuntimeError(f"Model weight loading failed: {e}") from e
+            else:
+                print(f"❌ [PYTORCH-{self.variant.upper()}] No GGUF files found in {bench_run.model_path}")
+                print(f"❌ [PYTORCH-{self.variant.upper()}] Available files: {list(bench_run.model_path.glob('*'))}")
+                raise FileNotFoundError(f"No GGUF model weights found in {bench_run.model_path}")
+        else:
+            print(f"❌ [PYTORCH-{self.variant.upper()}] No model path provided or path is not a directory")
+            raise ValueError("Model path is required for PyTorch benchmarking")
+
+        if not weights_loaded:
+            raise RuntimeError("Model weights were not successfully loaded - cannot proceed with benchmark")
 
         model.eval()
         print(

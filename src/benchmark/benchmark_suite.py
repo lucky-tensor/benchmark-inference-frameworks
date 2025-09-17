@@ -6,7 +6,6 @@ Manages collections of benchmark runs and coordinates their execution.
 """
 
 from pathlib import Path
-from typing import Union
 
 from .benchmark_results import BenchmarkResults
 from .benchmark_run import BenchRun
@@ -31,7 +30,7 @@ class BenchmarkSuite:
         self.bench_runs.append(bench_run)
 
     def create_benchmark(
-        self, model_id: str, model_path: Union[str, Path], model_algo: str, framework_name: str, **kwargs
+        self, model_id: str, model_path: str | Path, model_algo: str, framework_name: str, **kwargs
     ) -> BenchRun:
         """Create and add a benchmark run with the given parameters."""
         bench_run = BenchRun(
