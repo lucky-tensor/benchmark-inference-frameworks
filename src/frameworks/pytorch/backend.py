@@ -15,16 +15,15 @@ import torch.nn.functional as F
 # Model configurations for different sizes
 MODEL_CONFIGS = {
     "1B": {
-        "dim": 2048,  # Processing dimension (from attention/ffn norms)
-        "embed_dim": 1680,  # Embedding dimension (from token_embd.weight)
+        "dim": 2048,  # Processing dimension (matches TinyGrad exactly)
+        "embed_dim": 2048,  # Embedding dimension (matches TinyGrad exactly)
         "n_heads": 32,  # Q projection: 2048 / 64 = 32 heads
         "n_kv_heads": 8,  # K/V projection: 512 / 64 = 8 heads
         "n_layers": 16,
         "rope_theta": 500000,
         "vocab_size": 128256,
-        "hidden_dim": 8192,  # FFN hidden dimension from GGUF file
-        # Note: This Llama-3.2-1B model has non-standard architecture with different
-        # embedding and processing dimensions
+        "hidden_dim": 8192,  # FFN hidden dimension (matches TinyGrad exactly)
+        # Note: Using exact same dimensions as TinyGrad, let GGUF handle quantization
     },
     "8B": {
         "dim": 4096,
@@ -190,8 +189,7 @@ class TransformerBlock(nn.Module):
         h = x + self.attention(self.attention_norm(x), pos, temperature)
 
         # Feed-forward with residual connection
-        out = h + self.feed_forward(self.ffn_norm(h))
-        return out
+        return h + self.feed_forward(self.ffn_norm(h))
 
 
 class PyTorchLLaMA(nn.Module):
@@ -234,7 +232,7 @@ class PyTorchLLaMA(nn.Module):
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
-        if isinstance(module, nn.Linear) or isinstance(module, nn.Embedding):
+        if isinstance(module, (nn.Linear, nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, tokens, pos, temperature=1.0, top_k=None, top_p=None, _alpha_f=None, _alpha_p=None):
@@ -405,15 +403,30 @@ def load_pytorch_weights_from_gguf(model: PyTorchLLaMA, gguf_path: Path) -> bool
         print(f"Loading GGUF file: {gguf_path}")
         reader = gguf.GGUFReader(str(gguf_path))
 
-        # Extract tensors from GGUF format
+        # Extract tensors from GGUF format with proper dequantization
         tensors = {}
         for tensor in reader.tensors:
             name = str(tensor.name, 'utf-8') if isinstance(tensor.name, bytes) else tensor.name
-            # Convert GGUF tensor data to PyTorch tensor
-            data = tensor.data
-            if hasattr(data, 'numpy'):
-                data = data.numpy()
-            tensors[name] = torch.from_numpy(data.copy())
+
+            # Handle quantized tensors properly using GGUF dequantization
+            if tensor.tensor_type != 0:  # Quantized tensor
+                try:
+                    # Use GGUF library to properly dequantize the tensor
+                    dequantized_data = gguf.dequantize(tensor.data, tensor.tensor_type)
+                    tensors[name] = torch.from_numpy(dequantized_data.copy())
+                    print(f"✓ Dequantized {name}: {tensors[name].shape} (type {tensor.tensor_type})")
+                except Exception as e:
+                    print(f"⚠️  Failed to dequantize {name}: {e}")
+                    # Fallback to raw data
+                    data = tensor.data
+                    if hasattr(data, 'numpy'):
+                        data = data.numpy()
+                    tensors[name] = torch.from_numpy(data.copy())
+            else:  # Unquantized tensor (type 0 = float32)
+                data = tensor.data
+                if hasattr(data, 'numpy'):
+                    data = data.numpy()
+                tensors[name] = torch.from_numpy(data.copy())
 
         if not tensors:
             raise ValueError(f"No tensors found in GGUF file: {gguf_path}")
@@ -514,10 +527,7 @@ def _load_gguf_tensors_to_model(model: PyTorchLLaMA, tensors: dict) -> tuple[int
                     # Navigate to the parameter in the model
                     param = model
                     for part in pytorch_name.split('.'):
-                        if part.isdigit():
-                            param = param[int(part)]
-                        else:
-                            param = getattr(param, part)
+                        param = param[int(part)] if part.isdigit() else getattr(param, part)
 
                     # Copy the tensor data
                     tensor_data = tensors[gguf_name]

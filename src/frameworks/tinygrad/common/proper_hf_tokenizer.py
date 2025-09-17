@@ -89,7 +89,7 @@ class ProperHuggingFaceTokenizer:
         special_tokens = {}
 
         # Add known special tokens
-        for token_name, token_str in [
+        for _token_name, token_str in [
             ("bos_token", self._bos_token),
             ("eos_token", self._eos_token),
             ("pad_token", self._pad_token),
