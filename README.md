@@ -71,7 +71,11 @@ uv run
 ### 2. Benchmarking Mode
 Automated performance testing:
 ```bash
-uv run -- --benchmark --iterations 10
+# Run comprehensive benchmark suite
+uv run src/benchmark_v2.py --model-id llama3-1b --model-path ~/models/llama3-1b-instruct --framework tinygrad pytorch-inductor
+
+# Compare all PyTorch variants
+uv run src/benchmark_v2.py --model-id llama3-1b --model-path ~/models/llama3-1b-instruct --framework pytorch-unoptimized pytorch-inductor pytorch-eager
 ```
 
 ### 3. Single Inference Mode

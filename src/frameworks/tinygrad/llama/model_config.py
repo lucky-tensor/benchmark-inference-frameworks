@@ -10,7 +10,7 @@ from tinygrad import Context, Device, Tensor, dtypes, nn
 from tinygrad.helpers import fetch
 from tinygrad.nn.state import gguf_load, load_state_dict, safe_load, torch_load
 
-from .extra.bench_log import BenchEvent, WallTimeEvent
+# Removed bench_log dependency - no longer needed
 from .extra.models.llama import convert_from_gguf, convert_from_huggingface, fix_bf16
 
 MODEL_PARAMS = {
@@ -104,9 +104,9 @@ def build_transformer(
     max_context=8192,
     load_weights_flag=True,
 ):
-    from extra.models.llama import Transformer
-
     from common.quantization import Int8Embedding, Int8Linear, NF4Linear
+
+    from .extra.models.llama import Transformer
 
     if quantize == "int8":
         linear, embedding, quantize_embeds = Int8Linear, Int8Embedding, True
@@ -122,58 +122,58 @@ def build_transformer(
     if not load_weights_flag:
         return model
 
-    with WallTimeEvent(BenchEvent.LOAD_WEIGHTS):
-        if model_path.is_dir():
-            if (model_path / "model.safetensors.index.json").exists():
-                weights = load_weights(str(model_path / "model.safetensors.index.json"))
-            elif (model_path / "model.safetensors").exists():
-                weights = load_weights(str(model_path / "model.safetensors"))
-            else:
-                weights = concat_weights(
-                    [
-                        load_weights(str(model_path / f"consolidated.{i:02d}.pth"))
-                        for i in range(MODEL_PARAMS[model_size]["files"])
-                    ],
-                    device[0] if isinstance(device, tuple) else device,
-                )
+    # Load weights without timing wrapper
+    if model_path.is_dir():
+        if (model_path / "model.safetensors.index.json").exists():
+            weights = load_weights(str(model_path / "model.safetensors.index.json"))
+        elif (model_path / "model.safetensors").exists():
+            weights = load_weights(str(model_path / "model.safetensors"))
         else:
-            weights = load_weights(str(model_path))
-
-        if "model.embed_tokens.weight" in weights:
-            weights = convert_from_huggingface(
-                weights,
-                MODEL_PARAMS[model_size]["args"]["n_layers"],
-                MODEL_PARAMS[model_size]["args"]["n_heads"],
-                MODEL_PARAMS[model_size]["args"]["n_kv_heads"],
+            weights = concat_weights(
+                [
+                    load_weights(str(model_path / f"consolidated.{i:02d}.pth"))
+                    for i in range(MODEL_PARAMS[model_size]["files"])
+                ],
+                device[0] if isinstance(device, tuple) else device,
             )
-        elif "token_embd.weight" in weights:
-            weights = convert_from_gguf(weights, MODEL_PARAMS[model_size]["args"]["n_layers"])
-        weights = fix_bf16(weights)
+    else:
+        weights = load_weights(str(model_path))
 
-        with Context(BEAM=0):
-            if quantize == "float16":
-                weights = {k: v.cast(quantize).contiguous() for k, v in weights.items()}
-            elif quantize is not None:
-                weights = linear.quantize(weights, device, scale_dtype, quantize_embeds)
-                for _, v in weights.items():
-                    v.realize()
+    if "model.embed_tokens.weight" in weights:
+        weights = convert_from_huggingface(
+            weights,
+            MODEL_PARAMS[model_size]["args"]["n_layers"],
+            MODEL_PARAMS[model_size]["args"]["n_heads"],
+            MODEL_PARAMS[model_size]["args"]["n_kv_heads"],
+        )
+    elif "token_embd.weight" in weights:
+        weights = convert_from_gguf(weights, MODEL_PARAMS[model_size]["args"]["n_layers"])
+    weights = fix_bf16(weights)
 
-            if isinstance(device, tuple):
-                for k, v in nn.state.get_state_dict(model).items():
-                    if "scale" in k:
-                        v.shard_(device, axis=None)
-                    elif ".attention." in k:
-                        v.shard_(device, axis=-1)
-                    elif ".feed_forward.w1." in k or ".feed_forward.w3." in k:
-                        v.shard_(device, axis=0)
-                    elif ".feed_forward." in k:
-                        v.shard_(device, axis=-1)
-                    elif "tok_embeddings.weight" in k or "output.weight" in k:
-                        v.shard_(device, axis=0)
-                    else:
-                        v.shard_(device, axis=None)
+    with Context(BEAM=0):
+        if quantize == "float16":
+            weights = {k: v.cast(quantize).contiguous() for k, v in weights.items()}
+        elif quantize is not None:
+            weights = linear.quantize(weights, device, scale_dtype, quantize_embeds)
+            for _, v in weights.items():
+                v.realize()
 
-            load_state_dict(model, weights, strict=False, consume=True)
+        if isinstance(device, tuple):
+            for k, v in nn.state.get_state_dict(model).items():
+                if "scale" in k:
+                    v.shard_(device, axis=None)
+                elif ".attention." in k:
+                    v.shard_(device, axis=-1)
+                elif ".feed_forward.w1." in k or ".feed_forward.w3." in k:
+                    v.shard_(device, axis=0)
+                elif ".feed_forward." in k:
+                    v.shard_(device, axis=-1)
+                elif "tok_embeddings.weight" in k or "output.weight" in k:
+                    v.shard_(device, axis=0)
+                else:
+                    v.shard_(device, axis=None)
+
+        load_state_dict(model, weights, strict=False, consume=True)
     return model
 
 

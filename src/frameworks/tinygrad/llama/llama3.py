@@ -112,7 +112,9 @@ def run_interactive_mode(model, tokenizer, device, args, param_bytes):
             first_token = True
 
             while True:
-                GlobalCounters.reset()
+                # Only reset counters when timing/profiling is enabled (preserves performance optimization state)
+                if args.timing or args.profile:
+                    GlobalCounters.reset()
                 if args.timing or args.profile:
                     print("")
                 st = GlobalCounters.time_sum_s
